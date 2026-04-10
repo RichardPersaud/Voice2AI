@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice2AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* ... existing styles ... */
+
+        /* Chat Bubble Styles */
+        .chat-bubble {
+            position: relative;
+            min-height: 60px;
+        }
+
+        .chat-bubble-content {
+            position: relative;
+        }
+
+        /* Ensure the entire bubble row is clickable */
+        .chat-bubble::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+        }
+
+        .chat-bubble-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Bubble Action Menu */
+        .bubble-action-menu {
+            position: absolute;
+            z-index: 50;
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            padding: 4px;
+            animation: menuPop 0.15s ease-out;
+        }
+
+        @keyframes menuPop {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            color: white;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+        }
+
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .action-btn.copy:hover {
+            color: #60a5fa;
+        }
+
+        .action-btn.rerun:hover {
+            color: #a78bfa;
+        }
+
+        .action-btn.delete:hover {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.15);
+        }
+
+        .action-divider {
+            width: 1px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Notification Toast */
+        .notification-toast {
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -20px);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+
+        /* Recording pulse animation */
+        .recording-pulse {
+            animation: pulse-red 2s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        /* Mic wave animation */
+        .mic-wave {
+            animation: wave 1s ease-in-out infinite;
+            height: 20px;
+        }
+
+        @keyframes wave {
+            0%, 100% {
+                height: 20px;
+            }
+            50% {
+                height: 50px;
+            }
+        }
+
+        .mic-wave:nth-child(1) { animation-delay: 0s; }
+        .mic-wave:nth-child(2) { animation-delay: 0.1s; }
+        .mic-wave:nth-child(3) { animation-delay: 0.2s; }
+        .mic-wave:nth-child(4) { animation-delay: 0.3s; }
+        .mic-wave:nth-child(5) { animation-delay: 0.4s; }
+        .mic-wave:nth-child(6) { animation-delay: 0.5s; }
+        .mic-wave:nth-child(7) { animation-delay: 0.6s; }
+        .mic-wave:nth-child(8) { animation-delay: 0.7s; }
+
+        /* Navbar Styles */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Profile Dropdown */
+        .profile-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 200px;
+            background: rgba(30, 41, 59, 0.98);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.2s ease-out;
+            overflow: hidden;
+        }
+
+        .profile-dropdown.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .profile-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .profile-dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .profile-dropdown-item svg {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+
+        .profile-dropdown-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
+        }
+
+        .profile-dropdown-header {
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-dropdown-header .name {
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .profile-dropdown-header .email {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 13px;
+            margin-top: 2px;
+        }
+
+        /* Profile Button */
+        .profile-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px;
+            padding-right: 14px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .profile-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .profile-btn .profile-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+
+        .profile-btn .chevron {
+            width: 16px;
+            height: 16px;
+            color: rgba(255, 255, 255, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .profile-btn.active .chevron {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen flex justify-center p-4 pt-20">
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-3 text-white">
+                <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                    </svg>
+                </div>
+                <span class="font-bold text-lg hidden sm:block">Voice2AI</span>
+            </a>
+
+            <!-- Profile Dropdown -->
+            <div class="relative" id="profileDropdown">
+                <button class="profile-btn" onclick="toggleProfileDropdown(event)">
+                    <div class="profile-avatar" id="profilePic">U</div>
+                    <svg class="chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <div class="profile-dropdown" id="profileMenu">
+                    <div class="profile-dropdown-header">
+                        <div class="name">User</div>
+                        <div class="email">user@example.com</div>
+                    </div>
+                    <div class="profile-dropdown-divider"></div>
+                    <button class="profile-dropdown-item" onclick="handleProfileAction('settings')">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Settings
+                    </button>
+                    <button class="profile-dropdown-item" onclick="handleProfileAction('history')">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        History
+                    </button>
+                    <div class="profile-dropdown-divider"></div>
+                    <button class="profile-dropdown-item" onclick="handleProfileAction('help')">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Help & Support
+                    </button>
+                    <button class="profile-dropdown-item" onclick="handleProfileAction('logout')" style="color: #f87171;">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area with space for fixed sidebar -->
+    <div class="w-full max-w-6xl mr-[340px] mx-auto">
+        <div class="max-w-4xl mx-auto w-full">
+            <!-- Main Card -->
+            <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+                <!-- Model Selector -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between">
+                        <label for="modelSelect" class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Ollama Model</label>
+                        <span id="modelLoading" class="text-gray-500 text-xs hidden">Loading...</span>
+                    </div>
+                    <select
+                        id="modelSelect"
+                        class="mt-2 w-full bg-slate-800 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 appearance-none cursor-pointer"
+                        style="background-color: rgb(30, 41, 59);"
+                    >
+                        <option value="" style="background-color: rgb(30, 41, 59); color: white;">Default model</option>
+                    </select>
+                </div>
+
+                <!-- Status -->
+                <div id="status" class="text-center mb-6">
+                    <span id="statusText" class="text-gray-300 text-sm">Ready to listen</span>
+                </div>
+
+                <!-- Record Button -->
+                <div class="flex justify-center mb-8">
+                    <button
+                        id="recordBtn"
+                        class="group relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 focus:outline-none"
+                        onclick="toggleRecording()"
+                    >
+                        <!-- Icon -->
+                        <svg id="micIcon" class="w-12 h-12 text-white mx-auto transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                        </svg>
+                        <!-- Stop Icon (hidden by default) -->
+                        <svg id="stopIcon" class="w-10 h-10 text-white mx-auto hidden transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M6 6h12v12H6z"/>
+                        </svg>
+                        <span class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Tap to record</span>
+                    </button>
+                </div>
+
+                <!-- Audio Visualizer (visible during recording) -->
+                <div id="visualizer" class="hidden mb-6">
+                    <div class="flex justify-center items-center gap-1 h-16">
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.1s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.2s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.3s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.4s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.5s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.6s;"></div>
+                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.7s;"></div>
+                    </div>
+                </div>
+
+
+                <!-- Processing Indicator -->
+                <div id="processing" class="hidden mb-6 text-center">
+                    <div class="inline-flex items-center gap-2 text-white">
+                        <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span class="loading-dots">Processing your voice</span>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div id="results" class="hidden space-y-4">
+                    <div id="chatHistory" class="space-y-4">
+                        <!-- Messages will be appended here -->
+                    </div>
+                </div>
+
+
+
+                <!-- Instructions -->
+                <div id="instructions" class="text-center text-gray-500 text-sm mt-6">
+                    <p>Click the microphone and speak your command or question.</p>
+                    <p class="mt-1">Your voice will be transcribed and processed by an AI assistant.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center mt-6 text-gray-500 text-xs">
+                <p>Powered by Whisper + Ollama • CasaOS Ready</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Fixed Sidebar -->
+    <div class="fixed right-4 top-[88px] w-80 h-[calc(100vh-104px)] bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 flex flex-col z-40">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-white font-bold text-lg">History</h2>
+                <button onclick="startNewChat()" class="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors" title="New Chat">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="conversationList" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                <!-- Conversations will be injected here -->
+                <div class="text-gray-500 text-sm text-center py-4">No past conversations</div>
+            </div>
+        </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let currentConversationId = null;
+
+        // UI Elements
+        const modelSelect = document.getElementById('modelSelect');
+        const modelLoading = document.getElementById('modelLoading');
+        const recordBtn = document.getElementById('recordBtn');
+        const micIcon = document.getElementById('micIcon');
+        const stopIcon = document.getElementById('stopIcon');
+        const visualizer = document.getElementById('visualizer');
+        const statusText = document.getElementById('statusText');
+        const processing = document.getElementById('processing');
+        const results = document.getElementById('results');
+        const chatHistory = document.getElementById('chatHistory');
+        const instructions = document.getElementById('instructions');
+        const conversationList = document.getElementById('conversationList');
+
+        async function toggleRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                // Check if a model is selected before starting a new recording
+                if (!modelSelect.value) {
+                    showError('Please select an Ollama model before recording.');
+                    return;
+                }
+                startRecording();
+            }
+        }
+
+        async function startRecording() {
+            try {
+                // Close any open action menus and notifications
+                closeActionMenu();
+                const existingNotification = document.querySelector('.notification-toast');
+                if (existingNotification) existingNotification.remove();
+
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Create MediaRecorder
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+                    ? 'audio/webm'
+                    : 'audio/mp4';
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    await processAudio();
+                };
+
+                // Start recording
+                mediaRecorder.start();
+                isRecording = true;
+
+                // Update UI
+                updateUIForRecording();
+
+            } catch (err) {
+                showError('Could not access microphone. Please allow microphone permissions.');
+                console.error('Error accessing microphone:', err);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            updateUIForStopped();
+        }
+
+        function updateUIForRecording() {
+            recordBtn.classList.add('recording-pulse', 'bg-red-500', 'bg-gradient-to-br', 'from-red-500', 'to-red-600');
+            recordBtn.classList.remove('bg-gradient-to-br', 'from-blue-500', 'to-purple-600');
+            micIcon.classList.add('hidden');
+            stopIcon.classList.remove('hidden');
+            visualizer.classList.remove('hidden');
+            instructions.classList.add('hidden');
+            statusText.textContent = 'Recording... Tap to stop';
+        }
+
+        function updateUIForStopped() {
+            recordBtn.classList.remove('recording-pulse', 'bg-red-500', 'bg-gradient-to-br', 'from-red-500', 'to-red-600');
+            recordBtn.classList.add('bg-gradient-to-br', 'from-blue-500', 'to-purple-600');
+            micIcon.classList.remove('hidden');
+            stopIcon.classList.add('hidden');
+            visualizer.classList.add('hidden');
+            statusText.textContent = 'Processing...';
+            processing.classList.remove('hidden');
+        }
+
+        async function processAudio() {
+            try {
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                const audioBlob = new Blob(audioChunks, { type: mimeType });
+
+                // Create form data
+                const formData = new FormData();
+                const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
+                formData.append('audio', audioBlob, `recording.${extension}`);
+
+                // Add selected model if one is chosen
+                const selectedModel = modelSelect.value;
+                if (selectedModel) {
+                    formData.append('model', selectedModel);
+                }
+
+                // Add current conversation ID if it exists
+                if (currentConversationId) {
+                    formData.append('conversation_id', currentConversationId);
+                }
+
+                // Send to server
+                const response = await fetch('/api/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                processing.classList.add('hidden');
+
+                if (result.success) {
+                    showResults(result.transcription, result.llm_response);
+                    currentConversationId = result.conversation_id;
+                    loadConversations(); // Refresh the sidebar
+                } else {
+                    showError(result.error || 'Failed to process audio');
+                }
+
+            } catch (err) {
+                processing.classList.add('hidden');
+                showError('Network error. Please try again.');
+                console.error('Error processing audio:', err);
+            }
+
+            statusText.textContent = 'Ready to listen';
+            instructions.classList.remove('hidden');
+        }
+
+        function showResults(transcription, response) {
+            results.classList.remove('hidden');
+
+            // Create transcription element (User)
+            const userDiv = document.createElement('div');
+            userDiv.className = 'chat-bubble flex justify-end mb-4 group/msg cursor-pointer';
+            userDiv.onclick = handleBubbleClick;
+            userDiv.innerHTML = `
+                <div class="chat-bubble-content relative max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
+                    <div class="flex items-center gap-2 mb-2 justify-end">
+                        <span class="text-blue-400 text-xs font-semibold uppercase tracking-wide">You</span>
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-white text-lg leading-relaxed text-right">${transcription}</p>
+                </div>
+            `;
+
+            // Create AI response element (AI)
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
+            aiDiv.onclick = handleBubbleClick;
+            aiDiv.innerHTML = `
+                <div class="chat-bubble-content relative max-w-[80%] bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
+                    <div class="flex items-center gap-2 mb-2">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                        <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
+                    </div>
+                    <p class="text-white text-lg leading-relaxed response-text"></p>
+                </div>
+            `;
+
+            // Prepend to top: AI first (bottom of exchange), then User (above AI)
+            // Wait, user wants AI message ABOVE the user's transcription.
+            // To achieve [AI] then [User] at the top:
+            // 1. Prepend User (goes to top)
+            // 2. Prepend AI (goes above User)
+            chatHistory.prepend(userDiv);
+            chatHistory.prepend(aiDiv);
+
+            const responseTextElement = aiDiv.querySelector('.response-text');
+
+            let i = 0;
+            const typingSpeed = 30;
+
+            function typeCharacter() {
+                if (i < response.length) {
+                    responseTextElement.textContent += response.charAt(i);
+                    i++;
+                    setTimeout(typeCharacter, typingSpeed);
+                }
+            }
+            typeCharacter();
+        }
+
+        function hideResults() {
+            results.classList.add('hidden');
+            chatHistory.innerHTML = '';
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        // Conversation History Logic
+        async function loadConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                const conversations = await response.json();
+
+                if (conversations.length === 0) {
+                    conversationList.innerHTML = '<div class="text-gray-500 text-sm text-center py-4">No past conversations</div>';
+                    return;
+                }
+
+                conversationList.innerHTML = '';
+                conversations.forEach(conv => {
+                    const div = document.createElement('div');
+                    div.className = `group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${currentConversationId === conv.id ? 'bg-white/20 border border-white/30' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`;
+                    div.onclick = () => selectConversation(conv.id);
+
+                    div.innerHTML = `
+                        <div class="flex flex-col overflow-hidden mr-2">
+                            <span class="text-white text-sm truncate font-medium">${conv.title}</span>
+                            <span class="text-gray-500 text-[10px]">${new Date(conv.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); deleteConversation('${conv.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-opacity">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10H12a1 1 0 00-1 1v1h1V4a1 1 0 00-1-1z"></path>
+                            </svg>
+                        </button>
+                    `;
+                    conversationList.appendChild(div);
+                });
+            } catch (err) {
+                console.error('Error loading conversations:', err);
+            }
+        }
+
+        async function selectConversation(id) {
+            currentConversationId = id;
+            loadConversations(); // Highlight active chat
+            chatHistory.innerHTML = ''; // Clear current view
+
+            try {
+                const response = await fetch(`/api/conversations/${id}`);
+                const messages = await response.json();
+
+                if (messages.length > 0) {
+                    // Reverse messages to display newest at top
+                    const reversedMessages = [...messages].reverse();
+
+                    reversedMessages.forEach(msg => {
+                        if (msg.role === 'user') {
+                            const userDiv = document.createElement('div');
+                            userDiv.className = 'chat-bubble flex justify-end mb-4 group/msg cursor-pointer';
+                            userDiv.onclick = handleBubbleClick;
+                            userDiv.innerHTML = `
+                                <div class="chat-bubble-content relative max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
+                                    <div class="flex items-center gap-2 mb-2 justify-end">
+                                        <span class="text-blue-400 text-xs font-semibold uppercase tracking-wide">You</span>
+                                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                                        </svg>
+                                    </div>
+                                    <p class="text-white text-lg leading-relaxed text-right">${msg.content}</p>
+                                </div>
+                            `;
+                            chatHistory.appendChild(userDiv);
+                        } else {
+                            const aiDiv = document.createElement('div');
+                            aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
+                            aiDiv.onclick = handleBubbleClick;
+                            aiDiv.innerHTML = `
+                                <div class="chat-bubble-content relative max-w-[80%] bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                                        </svg>
+                                        <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
+                                    </div>
+                                    <p class="text-white text-lg leading-relaxed">${msg.content}</p>
+                                </div>
+                            `;
+                            chatHistory.appendChild(aiDiv);
+                        }
+                    });
+                    results.classList.remove('hidden');
+                }
+            } catch (err) {
+                showError('Could not load conversation history.');
+            }
+        }
+
+        async function deleteConversation(id) {
+            if (!confirm('Delete this conversation?')) return;
+
+            try {
+                const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    if (currentConversationId === id) {
+                        currentConversationId = null;
+                        hideResults();
+                    }
+                    loadConversations();
+                }
+            } catch (err) {
+                console.error('Error deleting conversation:', err);
+            }
+        }
+
+        function startNewChat() {
+            currentConversationId = null;
+            hideResults();
+            loadConversations();
+            statusText.textContent = 'Started a new chat';
+            setTimeout(() => { statusText.textContent = 'Ready to listen'; }, 2000);
+        }
+
+        // Load available models on page load
+        async function loadModels() {
+            try {
+                modelLoading.classList.remove('hidden');
+                const response = await fetch('/api/models');
+                const data = await response.json();
+
+                if (data.models && data.models.length > 0) {
+                    // Clear existing options except the default
+                    modelSelect.innerHTML = '<option value="">Default model</option>';
+
+                    // Add each model as an option
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.name;
+                        option.textContent = model.name;
+                        option.style.backgroundColor = 'rgb(30, 41, 59)';
+                        option.style.color = 'white';
+                        modelSelect.appendChild(option);
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading models:', err);
+                // If we can't load models, just keep the default option
+            } finally {
+                modelLoading.classList.add('hidden');
+            }
+        }
+
+        // Initialize
+        loadModels();
+        loadConversations();
+        updateProfileAvatar();
+
+        // Track active action menu
+        let activeActionMenu = null;
+
+        async function handleBubbleClick(e) {
+            console.log('Bubble clicked', e.target);
+
+            // Close any existing action menu
+            closeActionMenu();
+
+            const bubble = e.currentTarget; // Use currentTarget to get the element with the handler
+            if (!bubble) return;
+
+            const isUser = bubble.classList.contains('justify-end');
+            const bubbleContent = bubble.querySelector('p').textContent;
+
+            // Create action menu
+            const menu = document.createElement('div');
+            menu.className = 'bubble-action-menu';
+            menu.dataset.bubbleId = bubble.dataset.messageId || Date.now();
+
+            if (isUser) {
+                // User message: Rerun and Delete options
+                menu.innerHTML = `
+                    <button class="action-btn rerun" onclick="handleBubbleAction(event, 'rerun', this)" title="Rerun this prompt">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Rerun</span>
+                    </button>
+                    <div class="action-divider"></div>
+                    <button class="action-btn delete" onclick="handleBubbleAction(event, 'delete', this)" title="Delete this exchange">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Delete</span>
+                    </button>
+                `;
+            } else {
+                // AI message: Copy option
+                menu.innerHTML = `
+                    <button class="action-btn copy" onclick="handleBubbleAction(event, 'copy', this)" title="Copy to clipboard">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m4 0h4m-8-4h.01M15 16h.01"></path>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                `;
+            }
+
+            // Store reference to the bubble for action handlers
+            menu.dataset.bubbleContent = bubbleContent;
+            bubble.appendChild(menu);
+            activeActionMenu = menu;
+
+            // Position the menu
+            const rect = bubble.getBoundingClientRect();
+            menu.style.position = 'absolute';
+            menu.style.top = isUser ? '8px' : '8px';
+            menu.style.right = isUser ? '8px' : 'auto';
+            menu.style.left = isUser ? 'auto' : '8px';
+        }
+
+        function closeActionMenu() {
+            if (activeActionMenu) {
+                activeActionMenu.remove();
+                activeActionMenu = null;
+            }
+        }
+
+        // Close action menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.bubble-action-menu') && !e.target.closest('.chat-bubble')) {
+                closeActionMenu();
+            }
+        });
+
+        async function handleBubbleAction(e, action, btn) {
+            e.stopPropagation();
+            const menu = btn.closest('.bubble-action-menu');
+            const content = menu.dataset.bubbleContent;
+
+            closeActionMenu();
+
+            switch (action) {
+                case 'copy':
+                    await copyText(content);
+                    break;
+                case 'rerun':
+                    await rerunPrompt(content);
+                    break;
+                case 'delete':
+                    await deleteMessagePair(content);
+                    break;
+            }
+        }
+
+        async function copyText(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                showNotification('Copied to clipboard!', 'success');
+            } catch (err) {
+                showNotification('Failed to copy', 'error');
+            }
+        }
+
+        async function rerunPrompt(text) {
+            processing.classList.remove('hidden');
+            statusText.textContent = 'Rerunning...';
+
+            const formData = new FormData();
+            formData.append('text', text);
+            const selectedModel = modelSelect.value;
+            if (selectedModel) formData.append('model', selectedModel);
+            if (currentConversationId) formData.append('conversation_id', currentConversationId);
+
+            try {
+                const response = await fetch('/api/transcribe', { method: 'POST', body: formData });
+                const result = await response.json();
+                processing.classList.add('hidden');
+                if (result.success) {
+                    showResults(result.transcription, result.llm_response);
+                    currentConversationId = result.conversation_id;
+                    loadConversations();
+                } else {
+                    showNotification(result.error || 'Failed to rerun prompt', 'error');
+                }
+            } catch (err) {
+                processing.classList.add('hidden');
+                showNotification('Network error. Please try again.', 'error');
+            }
+            statusText.textContent = 'Ready to listen';
+            instructions.classList.remove('hidden');
+        }
+
+        async function deleteMessagePair(content) {
+            if (!currentConversationId) {
+                showNotification('No active conversation', 'error');
+                return;
+            }
+
+            // Show confirmation modal
+            if (!confirm('Delete this message and its response?')) return;
+
+            const formData = new FormData();
+            formData.append('conversation_id', currentConversationId);
+            formData.append('content', content);
+
+            try {
+                const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    await selectConversation(currentConversationId);
+                    showNotification('Message deleted', 'success');
+                } else {
+                    showNotification(result.error || 'Failed to delete', 'error');
+                }
+            } catch (err) {
+                showNotification('Network error. Please try again.', 'error');
+            }
+        }
+
+        // Helper function to show notifications (replaces error toast)
+        function showNotification(message, type = 'info') {
+            // Remove existing notification
+            const existing = document.querySelector('.notification-toast');
+            if (existing) existing.remove();
+
+            const notification = document.createElement('div');
+            notification.className = `notification-toast fixed top-4 left-1/2 transform -translate-x-1/2 z-[2000] px-6 py-3 rounded-xl shadow-2xl transition-all duration-300 ${
+                type === 'error' ? 'bg-red-500/90' :
+                type === 'success' ? 'bg-green-500/90' :
+                'bg-blue-500/90'
+            } backdrop-blur-md border border-white/20`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-2 text-white font-medium text-sm">
+                    ${type === 'success' ?
+                        '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' :
+                        type === 'error' ?
+                        '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>' :
+                        '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+                    }
+                    <span>${message}</span>
+                </div>
+            `;
+            document.body.appendChild(notification);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translate(-50%, -10px)';
+                requestAnimationFrame(() => {
+                    notification.style.opacity = '1';
+                    notification.style.transform = 'translate(-50%, 0)';
+                });
+            });
+
+            // Auto remove
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translate(-50%, -10px)';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Profile Dropdown Functions
+        function toggleProfileDropdown(e) {
+            e.stopPropagation();
+            const menu = document.getElementById('profileMenu');
+            const btn = e.currentTarget;
+
+            menu.classList.toggle('active');
+            btn.classList.toggle('active');
+        }
+
+        function closeProfileDropdown() {
+            const menu = document.getElementById('profileMenu');
+            const btn = document.querySelector('.profile-btn');
+
+            menu.classList.remove('active');
+            btn.classList.remove('active');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('profileDropdown');
+            if (!dropdown.contains(e.target)) {
+                closeProfileDropdown();
+            }
+        });
+
+        function updateProfileAvatar() {
+            const emailEl = document.querySelector('.profile-dropdown-header .email');
+            const avatarEl = document.getElementById('profilePic');
+            if (emailEl && avatarEl) {
+                const email = emailEl.textContent.trim();
+                const firstLetter = email.charAt(0).toUpperCase();
+                avatarEl.textContent = firstLetter;
+            }
+        }
+
+        function handleProfileAction(action) {
+            closeProfileDropdown();
+
+            switch (action) {
+                case 'settings':
+                    showNotification('Settings - Coming soon!', 'info');
+                    break;
+                case 'history':
+                    // Scroll to conversation list or highlight it
+                    document.getElementById('conversationList').scrollIntoView({ behavior: 'smooth' });
+                    showNotification('Showing conversation history', 'success');
+                    break;
+                case 'help':
+                    showNotification('Help & Support - Coming soon!', 'info');
+                    break;
+                case 'logout':
+                    showNotification('Logged out successfully', 'success');
+                    // In a real app, this would clear session and redirect
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>

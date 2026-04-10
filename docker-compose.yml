@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  voice-command-app:
+    build: .
+    container_name: voice-command-app
+    ports:
+      - "8080:8000"
+    environment:
+      - OLLAMA_HOST=http://192.168.50.209:11434
+      - OLLAMA_MODEL=llama3.2:latest
+    volumes:
+      - ./uploads:/app/uploads
+      - whisper-cache:/root/.cache/whisper
+      - ./conversations.db:/app/conversations.db
+    restart: unless-stopped
+
+volumes:
+  whisper-cache:
