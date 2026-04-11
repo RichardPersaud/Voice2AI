@@ -365,15 +365,18 @@
             justify-content: center;
         }
 
-        /* Desktop sidebar - hide on screens smaller than 1700px */
-        @media (max-width: 1699px) {
-            .desktop-sidebar {
-                display: none !important;
-            }
+        /* Desktop sidebar - hidden on screens smaller than 1700px by default */
+        .desktop-sidebar {
+            display: none;
+        }
+        .desktop-sidebar.visible {
+            display: flex !important;
         }
 
-        /* On large screens (1700px+), show sidebar and position main container to the left */
         @media (min-width: 1700px) {
+            .desktop-sidebar {
+                display: flex;
+            }
             .main-container {
                 justify-content: flex-start;
                 padding-right: 340px;
@@ -1502,12 +1505,12 @@
                         }
                     } else {
                         // Desktop: toggle desktop sidebar visibility
-                        if (desktopSidebar.style.display === 'none' || desktopSidebar.style.display === '') {
-                            desktopSidebar.style.display = 'flex';
-                            showNotification('History sidebar shown', 'success');
-                        } else {
-                            desktopSidebar.style.display = 'none';
+                        if (desktopSidebar.classList.contains('visible')) {
+                            desktopSidebar.classList.remove('visible');
                             showNotification('History sidebar hidden', 'success');
+                        } else {
+                            desktopSidebar.classList.add('visible');
+                            showNotification('History sidebar shown', 'success');
                         }
                     }
                     break;
