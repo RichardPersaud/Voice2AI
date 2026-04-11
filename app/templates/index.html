@@ -1494,10 +1494,13 @@
                 case 'history': {
                     // Toggle left sidebar (conversation list)
                     const mobileSidebar = document.getElementById('mobileSidebar');
+                    console.log('History clicked, sidebar classes:', mobileSidebar.classList.toString());
                     
                     if (mobileSidebar.classList.contains('visible-sidebar')) {
+                        console.log('Closing sidebar');
                         closeMobileSidebar();
                     } else {
+                        console.log('Opening sidebar');
                         openMobileSidebar();
                     }
                     break;
