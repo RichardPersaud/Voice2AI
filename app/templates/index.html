@@ -360,6 +360,26 @@
             }
         }
 
+        /* Main container positioning */
+        .main-container {
+            justify-content: center;
+        }
+
+        /* Desktop sidebar - hide on screens smaller than 1700px */
+        @media (max-width: 1699px) {
+            .desktop-sidebar {
+                display: none !important;
+            }
+        }
+
+        /* On large screens (1700px+), show sidebar and position main container to the left */
+        @media (min-width: 1700px) {
+            .main-container {
+                justify-content: flex-start;
+                padding-right: 340px;
+            }
+        }
+
         /* Code block wrapper for positioning */
         .code-block-wrapper {
             position: relative;
@@ -464,9 +484,9 @@
         </div>
     </nav>
 
-    <!-- Main Content Area - Centered -->
-    <div class="w-full flex justify-center px-0">
-        <div class="w-full max-w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
+    <!-- Main Content Area - Centered, positioned left on large screens -->
+    <div class="main-container w-full flex justify-center px-0">
+        <div class="main-content w-full max-w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
             <!-- Main Card -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
                 <!-- Model Selector -->
@@ -575,7 +595,7 @@
     </div>
 
     <!-- Desktop Sidebar -->
-    <div class="hidden md:flex fixed right-4 top-[88px] w-80 h-[calc(100vh-104px)] bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 flex-col z-40">
+    <div class="desktop-sidebar fixed right-4 top-[88px] w-80 h-[calc(100vh-104px)] bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 flex-col z-40">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-white font-bold text-lg">History</h2>
                 <button onclick="startNewChat()" class="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors" title="New Chat">
