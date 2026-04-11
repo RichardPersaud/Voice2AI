@@ -2,7 +2,7 @@
 
 A modern web application that captures voice commands, transcribes them using OpenAI Whisper, and processes them through an LLM (Ollama). Features conversation history, configurable settings, and a beautiful dark-themed UI. Designed for easy deployment on CasaOS.
 
-<img width="1550" height="799" alt="image" src="https://github.com/user-attachments/assets/f84e5d6a-ff73-4efd-8d1b-72d20a5a31b9" />
+<img width="1453" height="755" alt="image" src="https://github.com/user-attachments/assets/8cff2b1f-01aa-413c-98eb-b2eabf4d1c34" />
 
 ## ✨ Features
 
