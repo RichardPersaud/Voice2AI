@@ -21,9 +21,12 @@
 
         .chat-bubble-content {
             position: relative;
-            overflow-wrap: break-word;
+            overflow-wrap: anywhere;
             word-wrap: break-word;
+            word-break: break-word;
+            min-width: 0;
             max-width: 100%;
+            overflow: hidden;
         }
 
         /* Ensure the entire bubble row is clickable */
@@ -309,11 +312,13 @@
         /* Response text wrapping */
         .response-text {
             word-wrap: break-word;
-            overflow-wrap: break-word;
+            overflow-wrap: anywhere;
+            word-break: break-word;
             white-space: normal;
             max-width: 100%;
             font-size: 10px;
             line-height: 1.5;
+            overflow: hidden;
         }
 
         @media (min-width: 768px) {
@@ -504,49 +509,51 @@
         </div>
     </nav>
 
+    <!-- Sticky Mic Button at Top -->
+    <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-40">
+        <div class="flex flex-col items-center">
+            <!-- Status -->
+            <div id="status" class="text-center mb-3">
+                <span id="statusText" class="text-gray-300 text-sm bg-slate-900/80 backdrop-blur-sm px-4 py-1 rounded-full">Ready to listen</span>
+            </div>
+
+            <!-- Record Button -->
+            <button
+                id="recordBtn"
+                class="group relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 focus:outline-none"
+                onclick="toggleRecording()"
+            >
+                <!-- Icon -->
+                <svg id="micIcon" class="w-10 h-10 text-white mx-auto transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                <!-- Stop Icon (hidden by default) -->
+                <svg id="stopIcon" class="w-8 h-8 text-white mx-auto hidden transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h12v12H6z"/>
+                </svg>
+            </button>
+
+            <!-- Audio Visualizer (visible during recording) -->
+            <div id="visualizer" class="hidden mt-4">
+                <div class="flex justify-center items-center gap-1 h-12">
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.1s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.2s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.3s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.4s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.5s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.6s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.7s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Main Content Area - Centered, positioned left on large screens -->
-    <div class="main-container w-full flex justify-center px-0">
+    <div class="main-container w-full flex justify-center px-0 pt-40">
         <div class="main-content w-full max-w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
             <!-- Main Card -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-                <!-- Status -->
-                <div id="status" class="text-center mb-6">
-                    <span id="statusText" class="text-gray-300 text-sm">Ready to listen</span>
-                </div>
-
-                <!-- Record Button -->
-                <div class="flex justify-center mb-8">
-                    <button
-                        id="recordBtn"
-                        class="group relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 focus:outline-none"
-                        onclick="toggleRecording()"
-                    >
-                        <!-- Icon -->
-                        <svg id="micIcon" class="w-12 h-12 text-white mx-auto transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                        </svg>
-                        <!-- Stop Icon (hidden by default) -->
-                        <svg id="stopIcon" class="w-10 h-10 text-white mx-auto hidden transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 6h12v12H6z"/>
-                        </svg>
-                        <span class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity hidden md:block">Tap to record</span>
-                    </button>
-                </div>
-
-                <!-- Audio Visualizer (visible during recording) -->
-                <div id="visualizer" class="hidden mb-6">
-                    <div class="flex justify-center items-center gap-1 h-16">
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.1s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.2s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.3s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.4s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.5s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.6s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.7s;"></div>
-                    </div>
-                </div>
-
 
                 <!-- Processing Indicator -->
                 <div id="processing" class="hidden mb-6 text-center">
@@ -955,23 +962,50 @@
 
             const responseTextElement = aiDiv.querySelector('.response-text');
 
-            let i = 0;
-            const typingSpeed = 30;
+            // Process markdown and type with formatting visible
+            // Split by newlines to preserve paragraph structure
+            const paragraphs = response.split('\n\n');
+            let currentParaIndex = 0;
+            let currentCharIndex = 0;
+            let currentText = '';
+            const typingSpeed = 20;
 
-            function typeCharacter() {
-                if (i < response.length) {
-                    responseTextElement.textContent += response.charAt(i);
-                    i++;
-                    setTimeout(typeCharacter, typingSpeed);
-                } else {
-                    // Done typing - render markdown
-                    responseTextElement.innerHTML = marked.parse(response);
-                    
-                    // Add copy buttons to code blocks
-                    addCopyButtons(responseTextElement);
+            function typeWithFormatting() {
+                if (currentParaIndex < paragraphs.length) {
+                    const currentPara = paragraphs[currentParaIndex];
+
+                    if (currentCharIndex < currentPara.length) {
+                        // Add next character
+                        currentText += currentPara.charAt(currentCharIndex);
+                        currentCharIndex++;
+
+                        // Render what we have so far for this paragraph
+                        // Process the completed paragraphs + current partial paragraph
+                        let displayText = paragraphs.slice(0, currentParaIndex).join('\n\n') + '\n\n' + currentText;
+                        responseTextElement.innerHTML = marked.parse(displayText);
+
+                        // Scroll to bottom of element
+                        responseTextElement.scrollTop = responseTextElement.scrollHeight;
+
+                        setTimeout(typeWithFormatting, typingSpeed);
+                    } else {
+                        // Paragraph complete, move to next
+                        currentParaIndex++;
+                        currentCharIndex = 0;
+                        currentText = '';
+
+                        if (currentParaIndex < paragraphs.length) {
+                            // Add delay between paragraphs
+                            setTimeout(typeWithFormatting, typingSpeed * 5);
+                        } else {
+                            // Done typing - final render with copy buttons
+                            responseTextElement.innerHTML = marked.parse(response);
+                            addCopyButtons(responseTextElement);
+                        }
+                    }
                 }
             }
-            typeCharacter();
+            typeWithFormatting();
         }
 
         function hideResults() {
