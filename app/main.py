@@ -48,6 +48,21 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+import re
+
+def strip_markdown(text: str) -> str:
+    """Remove markdown syntax from text for cleaner display."""
+    # Remove code blocks
+    text = re.sub(r'`{3}[\w]*\n?', '', text)
+    text = re.sub(r'`{3}', '', text)
+    # Remove headers
+    text = re.sub(r'#{1,6}\s', '', text)
+    # Remove bold/italic markers
+    text = re.sub(r'\*\*?|__?', '', text)
+    # Remove inline code backticks but keep content
+    text = re.sub(r'`([^`]+)`', r'\1', text)
+    return text.strip()
+
 def init_db():
     with get_db_connection() as conn:
         conn.execute("""
@@ -76,7 +91,7 @@ init_db()
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     """Serve the main HTML page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {"request": request, "version": "1.1"})
 
 
 @app.get("/health")
@@ -99,6 +114,29 @@ async def get_models():
         return {"models": []}
 
 
+@app.post("/api/models/test")
+async def test_ollama_connection(host: str = Form(...)):
+    """Test connection to a custom Ollama host and return available models."""
+    try:
+        # Validate URL
+        if not host.startswith(('http://', 'https://')):
+            raise HTTPException(status_code=400, detail="Invalid URL. Must start with http:// or https://")
+
+        response = requests.get(f"{host}/api/tags", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {"success": True, "models": data.get("models", [])}
+        else:
+            return {"success": False, "error": f"HTTP {response.status_code}", "models": []}
+    except requests.exceptions.ConnectionError:
+        return {"success": False, "error": "Could not connect to Ollama server", "models": []}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "Connection timed out", "models": []}
+    except Exception as e:
+        print(f"Error testing connection: {str(e)}")
+        return {"success": False, "error": str(e), "models": []}
+
+
 @app.get("/api/conversations")
 async def get_conversations():
     """List all past conversations."""
@@ -116,12 +154,21 @@ async def get_conversation_history(conversation_id: str):
     """Retrieve all messages for a specific conversation."""
     try:
         with get_db_connection() as conn:
+            # Get model info from conversation
+            conv_cursor = conn.execute(
+                "SELECT model_used FROM conversations WHERE id = ?",
+                (conversation_id,)
+            )
+            conv_row = conv_cursor.fetchone()
+            model_used = conv_row['model_used'] if conv_row else 'AI'
+            
             cursor = conn.execute(
                 "SELECT role, content, timestamp FROM messages WHERE conversation_id = ? ORDER BY timestamp ASC",
                 (conversation_id,)
             )
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
+            messages = [dict(row) for row in rows]
+            return {"messages": messages, "model_used": model_used}
     except Exception as e:
         print(f"Error fetching conversation {conversation_id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -267,6 +314,9 @@ async def transcribe_audio(audio: UploadFile = File(None), text: str = Form(None
 
         # Send to Ollama for processing (with conversation history)
         llm_response = await process_with_llm(transcribed_text, selected_model, conversation_id)
+        
+        # Keep original markdown for frontend rendering
+        clean_response = llm_response
 
         # Save assistant message to DB
         with get_db_connection() as conn:
@@ -279,8 +329,9 @@ async def transcribe_audio(audio: UploadFile = File(None), text: str = Form(None
         return {
             "success": True,
             "transcription": transcribed_text,
-            "llm_response": llm_response,
-            "conversation_id": conversation_id
+            "llm_response": clean_response,
+            "conversation_id": conversation_id,
+            "model_used": selected_model
         }
 
     except Exception as e:

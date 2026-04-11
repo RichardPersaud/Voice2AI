@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="description" content="Voice-controlled AI assistant powered by Ollama">
     <title>Voice2AI</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/voice2ai_logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         /* ... existing styles ... */
 
@@ -16,6 +21,12 @@
 
         .chat-bubble-content {
             position: relative;
+            overflow-wrap: anywhere;
+            word-wrap: break-word;
+            word-break: break-word;
+            min-width: 0;
+            max-width: 100%;
+            overflow: hidden;
         }
 
         /* Ensure the entire bubble row is clickable */
@@ -241,6 +252,19 @@
             margin-top: 2px;
         }
 
+        /* Mobile Sidebar Animation */
+        .mobile-sidebar {
+            transition: transform 0.3s ease-out;
+        }
+        
+        .mobile-sidebar.hidden-sidebar {
+            transform: translateX(-100%);
+        }
+        
+        .mobile-sidebar.visible-sidebar {
+            transform: translateX(0);
+        }
+        
         /* Profile Button */
         .profile-btn {
             display: flex;
@@ -284,9 +308,144 @@
         .profile-btn.active .chevron {
             transform: rotate(180deg);
         }
+
+        /* Response text wrapping */
+        .response-text {
+            word-wrap: break-word;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            white-space: normal;
+            max-width: 100%;
+            font-size: 10px;
+            line-height: 1.5;
+            overflow: hidden;
+        }
+
+        @media (min-width: 768px) {
+            .response-text {
+                font-size: 12px;
+            }
+        }
+
+        /* Markdown code blocks */
+        .response-text pre {
+            background-color: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin: 1.5rem 0 0.5rem 0;
+            overflow-x: auto;
+        }
+
+        .response-text pre code {
+            background-color: transparent;
+            color: #e2e8f0;
+            font-family: ui-monospace, monospace;
+            font-size: 10px;
+            line-height: 1.5;
+        }
+
+        @media (min-width: 768px) {
+            .response-text pre code {
+                font-size: 12px;
+            }
+        }
+
+        .response-text code:not(pre code) {
+            background-color: rgba(15, 23, 42, 0.8);
+            color: #e2e8f0;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: ui-monospace, monospace;
+            font-size: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .response-text code:not(pre code) {
+                font-size: 12px;
+            }
+        }
+
+        /* Markdown lists - reduce excessive spacing */
+        .response-text ul,
+        .response-text ol {
+            margin: 0.5rem 0;
+            padding-left: 1.25rem;
+        }
+
+        .response-text li {
+            margin: 0.15rem 0;
+            line-height: 1.4;
+        }
+
+        .response-text li > p {
+            margin: 0;
+        }
+
+        /* Main container positioning */
+        .main-container {
+            justify-content: center;
+        }
+
+        /* Desktop sidebar - hidden on screens smaller than 1700px by default */
+        .desktop-sidebar {
+            display: none;
+        }
+        .desktop-sidebar.visible {
+            display: flex !important;
+        }
+
+        @media (min-width: 1700px) {
+            .desktop-sidebar {
+                display: flex;
+            }
+            .main-container {
+                justify-content: flex-start;
+                padding-right: 340px;
+            }
+        }
+
+        /* Code block wrapper for positioning */
+        .code-block-wrapper {
+            position: relative;
+            margin: 1.5rem 0 0.5rem 0;
+        }
+
+        .code-block-wrapper pre {
+            margin: 0;
+        }
+
+        /* Copy button for code blocks */
+        .code-copy-btn {
+            position: absolute;
+            top: -28px;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 4px 8px;
+            color: white;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .code-copy-btn:hover {
+            background: rgba(30, 41, 59, 1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .code-copy-btn.copied {
+            background: rgba(34, 197, 94, 0.9);
+            border-color: rgba(34, 197, 94, 0.5);
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen flex justify-center p-4 pt-20">
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen flex justify-center p-4 pt-20 md:pt-20">
     <!-- Navbar -->
     <nav class="navbar">
         <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -296,6 +455,13 @@
                 <img src="/static/voice2ai_logo.png" alt="Voice2AI" class="w-10 h-10 rounded-xl shadow-lg">
                 <span class="font-bold text-lg hidden sm:block">Voice2AI</span>
             </a>
+
+            <!-- Mobile Hamburger Menu Button (bottom-left) -->
+            <button id="hamburgerBtn" class="fixed bottom-4 left-4 z-50 md:hidden w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg flex items-center justify-center text-white transition-transform duration-300" onclick="toggleMobileSidebar()">
+                <svg id="hamburgerIcon" class="w-6 h-6 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
 
             <!-- Profile Dropdown -->
             <div class="relative" id="profileDropdown">
@@ -319,7 +485,7 @@
                         </svg>
                         Settings
                     </button>
-                    <button class="profile-dropdown-item" onclick="handleProfileAction('history')">
+                    <button class="profile-dropdown-item" onclick="event.stopPropagation(); handleProfileAction('history')">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
@@ -343,64 +509,56 @@
         </div>
     </nav>
 
-    <!-- Main Content Area with space for fixed sidebar -->
-    <div class="w-full max-w-6xl mr-[340px] mx-auto">
-        <div class="max-w-4xl mx-auto w-full">
+    <!-- Sticky Mic Button at Top -->
+    <div class="fixed top-20 left-1/2 transform -translate-x-1/2 z-40">
+        <div class="flex flex-col items-center">
+            <!-- Status -->
+            <div id="status" class="text-center mb-3">
+                <span id="statusText" class="text-gray-300 text-sm bg-slate-900/80 backdrop-blur-sm px-4 py-1 rounded-full">Ready to listen</span>
+            </div>
+
+            <!-- Record Button -->
+            <button
+                id="recordBtn"
+                class="group relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 focus:outline-none"
+                onclick="toggleRecording()"
+            >
+                <!-- Icon -->
+                <svg id="micIcon" class="w-10 h-10 text-white mx-auto transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                <!-- Stop Icon (hidden by default) -->
+                <svg id="stopIcon" class="w-8 h-8 text-white mx-auto hidden transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h12v12H6z"/>
+                </svg>
+            </button>
+
+            <!-- Recording Timer -->
+            <div id="recordingTimer" class="hidden mt-2 text-center">
+                <span id="timerDisplay" class="text-white text-lg font-mono font-bold bg-red-500/80 backdrop-blur-sm px-3 py-1 rounded-full">00:00</span>
+            </div>
+
+            <!-- Audio Visualizer (visible during recording) -->
+            <div id="visualizer" class="hidden mt-4">
+                <div class="flex justify-center items-center gap-1 h-12">
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.1s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.2s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.3s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.4s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.5s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.6s;"></div>
+                    <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.7s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area - Centered, positioned left on large screens -->
+    <div class="main-container w-full flex justify-center px-0 pt-40">
+        <div class="main-content w-full max-w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
             <!-- Main Card -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-                <!-- Model Selector -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between">
-                        <label for="modelSelect" class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Ollama Model</label>
-                        <span id="modelLoading" class="text-gray-500 text-xs hidden">Loading...</span>
-                    </div>
-                    <select
-                        id="modelSelect"
-                        class="mt-2 w-full bg-slate-800 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 appearance-none cursor-pointer"
-                        style="background-color: rgb(30, 41, 59);"
-                    >
-                        <option value="" style="background-color: rgb(30, 41, 59); color: white;">Default model</option>
-                    </select>
-                </div>
-
-                <!-- Status -->
-                <div id="status" class="text-center mb-6">
-                    <span id="statusText" class="text-gray-300 text-sm">Ready to listen</span>
-                </div>
-
-                <!-- Record Button -->
-                <div class="flex justify-center mb-8">
-                    <button
-                        id="recordBtn"
-                        class="group relative w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105 focus:outline-none"
-                        onclick="toggleRecording()"
-                    >
-                        <!-- Icon -->
-                        <svg id="micIcon" class="w-12 h-12 text-white mx-auto transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
-                        </svg>
-                        <!-- Stop Icon (hidden by default) -->
-                        <svg id="stopIcon" class="w-10 h-10 text-white mx-auto hidden transition-transform duration-300" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M6 6h12v12H6z"/>
-                        </svg>
-                        <span class="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">Tap to record</span>
-                    </button>
-                </div>
-
-                <!-- Audio Visualizer (visible during recording) -->
-                <div id="visualizer" class="hidden mb-6">
-                    <div class="flex justify-center items-center gap-1 h-16">
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.1s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.2s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.3s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.4s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.5s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.6s;"></div>
-                        <div class="w-1 bg-gradient-to-t from-blue-400 to-purple-500 rounded-full mic-wave" style="animation-delay: 0.7s;"></div>
-                    </div>
-                </div>
-
 
                 <!-- Processing Indicator -->
                 <div id="processing" class="hidden mb-6 text-center">
@@ -409,7 +567,7 @@
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        <span class="loading-dots">Processing your voice</span>
+                        <span class="loading-dots">Thinking...</span>
                     </div>
                 </div>
 
@@ -436,8 +594,25 @@
         </div>
     </div>
 
-    <!-- Fixed Sidebar -->
-    <div class="fixed right-4 top-[88px] w-80 h-[calc(100vh-104px)] bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 flex flex-col z-40">
+    <!-- Mobile Sidebar (slides from left) -->
+    <div id="mobileSidebar" class="mobile-sidebar hidden-sidebar fixed left-0 top-0 h-full w-80 bg-slate-900/95 backdrop-blur-lg p-6 shadow-2xl border-r border-white/20 flex flex-col z-50 pt-20">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-white font-bold text-lg">History</h2>
+            <button onclick="startNewChatMobile()" class="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors" title="New Chat">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div id="mobileConversationList" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar h-[calc(100vh-200px)]">
+            <!-- Conversations will be injected here -->
+            <div class="text-gray-500 text-sm text-center py-4">No past conversations</div>
+        </div>
+    </div>
+
+    <!-- Desktop Sidebar -->
+    <div class="desktop-sidebar fixed right-4 top-[88px] w-80 h-[calc(100vh-104px)] bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-2xl border border-white/20 flex-col z-40">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-white font-bold text-lg">History</h2>
                 <button onclick="startNewChat()" class="p-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors" title="New Chat">
@@ -453,15 +628,27 @@
             </div>
         </div>
 
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="bg-slate-800 rounded-xl border border-white/20 p-6 max-w-sm mx-4 shadow-2xl transform scale-95 opacity-0 transition-all duration-200" id="confirmModalContent">
+            <h3 class="text-white text-lg font-semibold mb-3" id="confirmModalTitle">Confirm</h3>
+            <p class="text-gray-300 text-sm mb-6" id="confirmModalMessage">Are you sure?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirmModalCancel" class="px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors">Cancel</button>
+                <button id="confirmModalOk" class="px-4 py-2 rounded-lg bg-red-500 text-white text-sm hover:bg-red-600 transition-colors">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
         let currentConversationId = null;
+        let recordingTimer = null;
+        let recordingSeconds = 0;
 
         // UI Elements
-        const modelSelect = document.getElementById('modelSelect');
-        const modelLoading = document.getElementById('modelLoading');
         const recordBtn = document.getElementById('recordBtn');
         const micIcon = document.getElementById('micIcon');
         const stopIcon = document.getElementById('stopIcon');
@@ -473,13 +660,124 @@
         const instructions = document.getElementById('instructions');
         const conversationList = document.getElementById('conversationList');
 
+        // Audio functions using Web Audio API
+        function playMicClick() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Short click sound
+                osc.frequency.setValueAtTime(800, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.1);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+        
+        function playNotification() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Pleasant notification sound
+                osc.frequency.setValueAtTime(600, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+                
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playAlert() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Alert sound - higher pitched, attention grabbing
+                osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.2);
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.4);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playDelete() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Deletion sound - descending, lower pitch
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+                
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.25);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
         async function toggleRecording() {
+            // Play mic click sound
+            playMicClick();
+            
             if (isRecording) {
                 stopRecording();
             } else {
-                // Check if a model is selected before starting a new recording
-                if (!modelSelect.value) {
-                    showError('Please select an Ollama model before recording.');
+                // Check if a model is configured in settings before starting recording
+                if (!settings.defaultModel) {
+                    showError('Please configure an Ollama model in Settings before recording.');
                     return;
                 }
                 startRecording();
@@ -518,6 +816,9 @@
                 mediaRecorder.start();
                 isRecording = true;
 
+                // Start recording timer
+                startRecordingTimer();
+
                 // Update UI
                 updateUIForRecording();
 
@@ -527,7 +828,62 @@
             }
         }
 
+        function startRecordingTimer() {
+            recordingSeconds = 0;
+            const maxSeconds = settings.maxRecordingTime * 60;
+            const timerDisplay = document.getElementById('timerDisplay');
+            const recordingTimerDiv = document.getElementById('recordingTimer');
+
+            // Show timer
+            recordingTimerDiv.classList.remove('hidden');
+            updateTimerDisplay();
+
+            // Start timer interval
+            recordingTimer = setInterval(() => {
+                recordingSeconds++;
+                updateTimerDisplay();
+
+                // Auto-stop when max time reached
+                if (recordingSeconds >= maxSeconds) {
+                    showNotification(`Maximum recording time (${settings.maxRecordingTime} min) reached`, 'info');
+                    stopRecording();
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const timerDisplay = document.getElementById('timerDisplay');
+            const maxSeconds = settings.maxRecordingTime * 60;
+            const remainingSeconds = maxSeconds - recordingSeconds;
+            const minutes = Math.floor(recordingSeconds / 60);
+            const seconds = recordingSeconds % 60;
+            const timeStr = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+            timerDisplay.textContent = timeStr;
+
+            // Change color when approaching limit (last 10 seconds)
+            if (remainingSeconds <= 10) {
+                timerDisplay.classList.remove('bg-red-500/80');
+                timerDisplay.classList.add('bg-red-600');
+            } else {
+                timerDisplay.classList.add('bg-red-500/80');
+                timerDisplay.classList.remove('bg-red-600');
+            }
+        }
+
+        function stopRecordingTimer() {
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+                recordingTimer = null;
+            }
+            recordingSeconds = 0;
+            document.getElementById('recordingTimer').classList.add('hidden');
+        }
+
         function stopRecording() {
+            // Stop the recording timer
+            stopRecordingTimer();
+
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
                 mediaRecorder.stop();
             }
@@ -548,10 +904,17 @@
         function updateUIForStopped() {
             recordBtn.classList.remove('recording-pulse', 'bg-red-500', 'bg-gradient-to-br', 'from-red-500', 'to-red-600');
             recordBtn.classList.add('bg-gradient-to-br', 'from-blue-500', 'to-purple-600');
-            micIcon.classList.remove('hidden');
-            stopIcon.classList.add('hidden');
+            
+            // Show spinning stop icon during processing
+            micIcon.classList.add('hidden');
+            stopIcon.classList.remove('hidden');
+            stopIcon.classList.add('animate-spin');
+            
             visualizer.classList.add('hidden');
-            statusText.textContent = 'Processing...';
+            statusText.textContent = 'Thinking...';
+            // Disable mic button during processing
+            recordBtn.disabled = true;
+            recordBtn.classList.add('opacity-50', 'cursor-not-allowed');
             processing.classList.remove('hidden');
         }
 
@@ -565,10 +928,9 @@
                 const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
                 formData.append('audio', audioBlob, `recording.${extension}`);
 
-                // Add selected model if one is chosen
-                const selectedModel = modelSelect.value;
-                if (selectedModel) {
-                    formData.append('model', selectedModel);
+                // Use the configured model from settings
+                if (settings.defaultModel) {
+                    formData.append('model', settings.defaultModel);
                 }
 
                 // Add current conversation ID if it exists
@@ -585,9 +947,12 @@
                 const result = await response.json();
 
                 processing.classList.add('hidden');
+                
+                // Play notification sound when AI responds
+                playNotification();
 
                 if (result.success) {
-                    showResults(result.transcription, result.llm_response);
+                    showResults(result.transcription, result.llm_response, result.model_used);
                     currentConversationId = result.conversation_id;
                     loadConversations(); // Refresh the sidebar
                 } else {
@@ -600,26 +965,36 @@
                 console.error('Error processing audio:', err);
             }
 
+            // Re-enable mic button and restore icon after processing
+            recordBtn.disabled = false;
+            recordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            micIcon.classList.remove('hidden');
+            stopIcon.classList.add('hidden');
+            stopIcon.classList.remove('animate-spin');
+            
             statusText.textContent = 'Ready to listen';
             instructions.classList.remove('hidden');
         }
 
-        function showResults(transcription, response) {
+        function showResults(transcription, response, modelUsed) {
             results.classList.remove('hidden');
+            
+            // Format model name for display
+            const displayModel = modelUsed ? modelUsed.split(':')[0] : 'AI';
 
             // Create transcription element (User)
             const userDiv = document.createElement('div');
             userDiv.className = 'chat-bubble flex justify-end mb-4 group/msg cursor-pointer';
             userDiv.onclick = handleBubbleClick;
             userDiv.innerHTML = `
-                <div class="chat-bubble-content relative max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
+                <div class="chat-bubble-content relative max-w-full md:max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
                     <div class="flex items-center gap-2 mb-2 justify-end">
                         <span class="text-blue-400 text-xs font-semibold uppercase tracking-wide">You</span>
                         <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                         </svg>
                     </div>
-                    <p class="text-white text-lg leading-relaxed text-right">${transcription}</p>
+                    <p class="text-white text-sm md:text-lg leading-relaxed text-left">${transcription}</p>
                 </div>
             `;
 
@@ -628,14 +1003,17 @@
             aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
             aiDiv.onclick = handleBubbleClick;
             aiDiv.innerHTML = `
-                <div class="chat-bubble-content relative max-w-[80%] bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
+                <div class="chat-bubble-content relative w-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
                     <div class="flex items-center gap-2 mb-2">
                         <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                         </svg>
                         <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
                     </div>
-                    <p class="text-white text-lg leading-relaxed response-text"></p>
+                    <p class="text-white text-sm leading-relaxed response-text"></p>
+                    <div class="mt-3 pt-2 border-t border-white/10 text-right">
+                        <span class="text-gray-500 text-[10px]">${displayModel}</span>
+                    </div>
                 </div>
             `;
 
@@ -649,17 +1027,50 @@
 
             const responseTextElement = aiDiv.querySelector('.response-text');
 
-            let i = 0;
-            const typingSpeed = 30;
+            // Process markdown and type with formatting visible
+            // Split by newlines to preserve paragraph structure
+            const paragraphs = response.split('\n\n');
+            let currentParaIndex = 0;
+            let currentCharIndex = 0;
+            let currentText = '';
+            const typingSpeed = 20;
 
-            function typeCharacter() {
-                if (i < response.length) {
-                    responseTextElement.textContent += response.charAt(i);
-                    i++;
-                    setTimeout(typeCharacter, typingSpeed);
+            function typeWithFormatting() {
+                if (currentParaIndex < paragraphs.length) {
+                    const currentPara = paragraphs[currentParaIndex];
+
+                    if (currentCharIndex < currentPara.length) {
+                        // Add next character
+                        currentText += currentPara.charAt(currentCharIndex);
+                        currentCharIndex++;
+
+                        // Render what we have so far for this paragraph
+                        // Process the completed paragraphs + current partial paragraph
+                        let displayText = paragraphs.slice(0, currentParaIndex).join('\n\n') + '\n\n' + currentText;
+                        responseTextElement.innerHTML = marked.parse(displayText);
+
+                        // Scroll to bottom of element
+                        responseTextElement.scrollTop = responseTextElement.scrollHeight;
+
+                        setTimeout(typeWithFormatting, typingSpeed);
+                    } else {
+                        // Paragraph complete, move to next
+                        currentParaIndex++;
+                        currentCharIndex = 0;
+                        currentText = '';
+
+                        if (currentParaIndex < paragraphs.length) {
+                            // Add delay between paragraphs
+                            setTimeout(typeWithFormatting, typingSpeed * 5);
+                        } else {
+                            // Done typing - final render with copy buttons
+                            responseTextElement.innerHTML = marked.parse(response);
+                            addCopyButtons(responseTextElement);
+                        }
+                    }
                 }
             }
-            typeCharacter();
+            typeWithFormatting();
         }
 
         function hideResults() {
@@ -671,19 +1082,84 @@
             showNotification(message, 'error');
         }
 
+        // Add copy buttons to code blocks
+        function addCopyButtons(container) {
+            const codeBlocks = container.querySelectorAll('pre');
+            codeBlocks.forEach(pre => {
+                // Skip if already wrapped
+                if (pre.parentElement.classList.contains('code-block-wrapper')) return;
+                
+                const code = pre.querySelector('code');
+                if (!code) return;
+                
+                // Create wrapper
+                const wrapper = document.createElement('div');
+                wrapper.className = 'code-block-wrapper';
+                
+                // Create copy button with icon
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'code-copy-btn';
+                copyBtn.innerHTML = `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Copy</span>
+                `;
+                copyBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    try {
+                        await navigator.clipboard.writeText(code.textContent);
+                        copyBtn.classList.add('copied');
+                        copyBtn.innerHTML = `
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
+                            <span>Copied</span>
+                        `;
+                        setTimeout(() => {
+                            copyBtn.classList.remove('copied');
+                            copyBtn.innerHTML = `
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copy</span>
+                            `;
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy:', err);
+                    }
+                };
+                
+                // Wrap the pre element
+                pre.parentNode.insertBefore(wrapper, pre);
+                wrapper.appendChild(copyBtn);
+                wrapper.appendChild(pre);
+            });
+        }
+
         // Conversation History Logic
         async function loadConversations() {
             try {
                 const response = await fetch('/api/conversations');
                 const conversations = await response.json();
+                
+                const mobileConversationList = document.getElementById('mobileConversationList');
 
                 if (conversations.length === 0) {
                     conversationList.innerHTML = '<div class="text-gray-500 text-sm text-center py-4">No past conversations</div>';
+                    if (mobileConversationList) {
+                        mobileConversationList.innerHTML = '<div class="text-gray-500 text-sm text-center py-4">No past conversations</div>';
+                    }
                     return;
                 }
 
                 conversationList.innerHTML = '';
+                if (mobileConversationList) mobileConversationList.innerHTML = '';
+                
                 conversations.forEach(conv => {
+                    // Desktop sidebar
                     const div = document.createElement('div');
                     div.className = `group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${currentConversationId === conv.id ? 'bg-white/20 border border-white/30' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`;
                     div.onclick = () => selectConversation(conv.id);
@@ -700,6 +1176,29 @@
                         </button>
                     `;
                     conversationList.appendChild(div);
+                    
+                    // Mobile sidebar
+                    if (mobileConversationList) {
+                        const mobileDiv = document.createElement('div');
+                        mobileDiv.className = `group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${currentConversationId === conv.id ? 'bg-white/20 border border-white/30' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`;
+                        mobileDiv.onclick = () => {
+                            selectConversation(conv.id);
+                            closeMobileSidebar();
+                        };
+
+                        mobileDiv.innerHTML = `
+                            <div class="flex flex-col overflow-hidden mr-2">
+                                <span class="text-white text-sm truncate font-medium">${conv.title}</span>
+                                <span class="text-gray-500 text-[10px]">${new Date(conv.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <button onclick="event.stopPropagation(); deleteConversation('${conv.id}')" class="p-1 hover:text-red-400 transition-opacity">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10H12a1 1 0 00-1 1v1h1V4a1 1 0 00-1-1z"></path>
+                                </svg>
+                            </button>
+                        `;
+                        mobileConversationList.appendChild(mobileDiv);
+                    }
                 });
             } catch (err) {
                 console.error('Error loading conversations:', err);
@@ -713,7 +1212,10 @@
 
             try {
                 const response = await fetch(`/api/conversations/${id}`);
-                const messages = await response.json();
+                const data = await response.json();
+                const messages = data.messages || [];
+                const conversationModel = data.model_used || 'AI';
+                const displayModel = conversationModel ? conversationModel.split(':')[0] : 'AI';
 
                 if (messages.length > 0) {
                     // Reverse messages to display newest at top
@@ -725,14 +1227,14 @@
                             userDiv.className = 'chat-bubble flex justify-end mb-4 group/msg cursor-pointer';
                             userDiv.onclick = handleBubbleClick;
                             userDiv.innerHTML = `
-                                <div class="chat-bubble-content relative max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
+                                <div class="chat-bubble-content relative max-w-full md:max-w-[80%] bg-white/10 rounded-2xl rounded-tr-none p-4 border border-white/10 shadow-sm hover:bg-white/15 transition-colors">
                                     <div class="flex items-center gap-2 mb-2 justify-end">
                                         <span class="text-blue-400 text-xs font-semibold uppercase tracking-wide">You</span>
                                         <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                                         </svg>
                                     </div>
-                                    <p class="text-white text-lg leading-relaxed text-right">${msg.content}</p>
+                                    <p class="text-white text-sm md:text-lg leading-relaxed text-left">${msg.content}</p>
                                 </div>
                             `;
                             chatHistory.appendChild(userDiv);
@@ -741,41 +1243,140 @@
                             aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
                             aiDiv.onclick = handleBubbleClick;
                             aiDiv.innerHTML = `
-                                <div class="chat-bubble-content relative max-w-[80%] bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
+                                <div class="chat-bubble-content relative w-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
                                     <div class="flex items-center gap-2 mb-2">
                                         <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                                         </svg>
                                         <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
                                     </div>
-                                    <p class="text-white text-lg leading-relaxed">${msg.content}</p>
+                                    <div class="text-white text-sm md:text-lg leading-relaxed response-text">${marked.parse(msg.content)}</div>
+                                    <div class="mt-3 pt-2 border-t border-white/10 text-right">
+                                        <span class="text-gray-500 text-[10px]">${displayModel}</span>
+                                    </div>
                                 </div>
                             `;
                             chatHistory.appendChild(aiDiv);
                         }
                     });
                     results.classList.remove('hidden');
+                    
+                    // Add copy buttons to code blocks after history loads
+                    setTimeout(() => {
+                        addCopyButtons(chatHistory);
+                    }, 100);
                 }
             } catch (err) {
                 showError('Could not load conversation history.');
             }
         }
 
-        async function deleteConversation(id) {
-            if (!confirm('Delete this conversation?')) return;
-
-            try {
-                const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
-                if (response.ok) {
-                    if (currentConversationId === id) {
-                        currentConversationId = null;
-                        hideResults();
-                    }
-                    loadConversations();
+        // Custom confirmation modal functions
+        function showConfirmModal(title, message, onConfirm, onCancel) {
+            playAlert();
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('confirmModalContent');
+            const titleEl = document.getElementById('confirmModalTitle');
+            const messageEl = document.getElementById('confirmModalMessage');
+            const okBtn = document.getElementById('confirmModalOk');
+            const cancelBtn = document.getElementById('confirmModalCancel');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+            
+            const handleOk = () => {
+                hideConfirmModal();
+                if (onConfirm) onConfirm();
+                cleanup();
+            };
+            
+            const handleCancel = () => {
+                hideConfirmModal();
+                if (onCancel) onCancel();
+                cleanup();
+            };
+            
+            const cleanup = () => {
+                okBtn.removeEventListener('click', handleOk);
+                cancelBtn.removeEventListener('click', handleCancel);
+                modal.removeEventListener('click', handleOutsideClick);
+            };
+            
+            const handleOutsideClick = (e) => {
+                if (e.target === modal) {
+                    handleCancel();
                 }
-            } catch (err) {
-                console.error('Error deleting conversation:', err);
+            };
+            
+            okBtn.addEventListener('click', handleOk);
+            cancelBtn.addEventListener('click', handleCancel);
+            modal.addEventListener('click', handleOutsideClick);
+        }
+        
+        function hideConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('confirmModalContent');
+            
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+        }
+
+        async function deleteConversation(id) {
+            playDelete();
+            showConfirmModal('Delete Conversation', 'Delete this conversation?', async () => {
+                try {
+                    const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+                    if (response.ok) {
+                        if (currentConversationId === id) {
+                            currentConversationId = null;
+                            hideResults();
+                        }
+                        loadConversations();
+                    }
+                } catch (err) {
+                    console.error('Error deleting conversation:', err);
+                }
+            });
+        }
+
+        async function deleteMessagePair(content) {
+            if (!currentConversationId) {
+                showNotification('No active conversation', 'error');
+                return;
             }
+
+            playDelete();
+            showConfirmModal('Delete Message', 'Delete this message and its response?', async () => {
+                const formData = new FormData();
+                formData.append('conversation_id', currentConversationId);
+                formData.append('content', content);
+
+                try {
+                    const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
+                    const result = await response.json();
+                    if (result.success) {
+                        await selectConversation(currentConversationId);
+                        showNotification('Message deleted', 'success');
+                    } else {
+                        showNotification(result.error || 'Failed to delete', 'error');
+                    }
+                } catch (err) {
+                    showNotification('Network error. Please try again.', 'error');
+                }
+            });
         }
 
         function startNewChat() {
@@ -783,40 +1384,12 @@
             hideResults();
             loadConversations();
             statusText.textContent = 'Started a new chat';
-            setTimeout(() => { statusText.textContent = 'Ready to listen'; }, 2000);
-        }
-
-        // Load available models on page load
-        async function loadModels() {
-            try {
-                modelLoading.classList.remove('hidden');
-                const response = await fetch('/api/models');
-                const data = await response.json();
-
-                if (data.models && data.models.length > 0) {
-                    // Clear existing options except the default
-                    modelSelect.innerHTML = '<option value="">Default model</option>';
-
-                    // Add each model as an option
-                    data.models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.name;
-                        option.textContent = model.name;
-                        option.style.backgroundColor = 'rgb(30, 41, 59)';
-                        option.style.color = 'white';
-                        modelSelect.appendChild(option);
-                    });
-                }
-            } catch (err) {
-                console.error('Error loading models:', err);
-                // If we can't load models, just keep the default option
-            } finally {
-                modelLoading.classList.add('hidden');
-            }
+            setTimeout(() => { recordBtn.disabled = false;
+            recordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            statusText.textContent = 'Ready to listen'; }, 2000);
         }
 
         // Initialize
-        loadModels();
         loadConversations();
         updateProfileAvatar();
 
@@ -931,8 +1504,8 @@
 
             const formData = new FormData();
             formData.append('text', text);
-            const selectedModel = modelSelect.value;
-            if (selectedModel) formData.append('model', selectedModel);
+            // Use the configured model from settings
+            if (settings.defaultModel) formData.append('model', settings.defaultModel);
             if (currentConversationId) formData.append('conversation_id', currentConversationId);
 
             try {
@@ -940,7 +1513,7 @@
                 const result = await response.json();
                 processing.classList.add('hidden');
                 if (result.success) {
-                    showResults(result.transcription, result.llm_response);
+                    showResults(result.transcription, result.llm_response, result.model_used);
                     currentConversationId = result.conversation_id;
                     loadConversations();
                 } else {
@@ -950,6 +1523,8 @@
                 processing.classList.add('hidden');
                 showNotification('Network error. Please try again.', 'error');
             }
+            recordBtn.disabled = false;
+            recordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
             statusText.textContent = 'Ready to listen';
             instructions.classList.remove('hidden');
         }
@@ -960,25 +1535,25 @@
                 return;
             }
 
-            // Show confirmation modal
-            if (!confirm('Delete this message and its response?')) return;
+            playDelete();
+            showConfirmModal('Delete Message', 'Delete this message and its response?', async () => {
+                const formData = new FormData();
+                formData.append('conversation_id', currentConversationId);
+                formData.append('content', content);
 
-            const formData = new FormData();
-            formData.append('conversation_id', currentConversationId);
-            formData.append('content', content);
-
-            try {
-                const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
-                const result = await response.json();
-                if (result.success) {
-                    await selectConversation(currentConversationId);
-                    showNotification('Message deleted', 'success');
-                } else {
-                    showNotification(result.error || 'Failed to delete', 'error');
+                try {
+                    const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
+                    const result = await response.json();
+                    if (result.success) {
+                        await selectConversation(currentConversationId);
+                        showNotification('Message deleted', 'success');
+                    } else {
+                        showNotification(result.error || 'Failed to delete', 'error');
+                    }
+                } catch (err) {
+                    showNotification('Network error. Please try again.', 'error');
                 }
-            } catch (err) {
-                showNotification('Network error. Please try again.', 'error');
-            }
+            });
         }
 
         // Helper function to show notifications (replaces error toast)
@@ -1065,13 +1640,22 @@
 
             switch (action) {
                 case 'settings':
-                    showNotification('Settings - Coming soon!', 'info');
+                    openSettingsModal();
                     break;
-                case 'history':
-                    // Scroll to conversation list or highlight it
-                    document.getElementById('conversationList').scrollIntoView({ behavior: 'smooth' });
-                    showNotification('Showing conversation history', 'success');
+                case 'history': {
+                    // Toggle left sidebar (conversation list)
+                    const mobileSidebar = document.getElementById('mobileSidebar');
+                    console.log('History clicked, sidebar classes:', mobileSidebar.classList.toString());
+                    
+                    if (mobileSidebar.classList.contains('visible-sidebar')) {
+                        console.log('Closing sidebar');
+                        closeMobileSidebar();
+                    } else {
+                        console.log('Opening sidebar');
+                        openMobileSidebar();
+                    }
                     break;
+                }
                 case 'help':
                     showNotification('Help & Support - Coming soon!', 'info');
                     break;
@@ -1084,6 +1668,495 @@
                     break;
             }
         }
+
+        // Mobile Sidebar Functions
+        function toggleMobileSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            if (sidebar.classList.contains('hidden-sidebar')) {
+                openMobileSidebar();
+            } else {
+                closeMobileSidebar();
+            }
+        }
+
+        function openMobileSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const icon = document.getElementById('hamburgerIcon');
+            sidebar.classList.remove('hidden-sidebar');
+            sidebar.classList.add('visible-sidebar');
+            // Animate to X
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+        }
+
+        function closeMobileSidebar() {
+            const sidebar = document.getElementById('mobileSidebar');
+            const icon = document.getElementById('hamburgerIcon');
+            sidebar.classList.remove('visible-sidebar');
+            sidebar.classList.add('hidden-sidebar');
+            // Animate back to hamburger
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+        }
+
+        function startNewChatMobile() {
+            startNewChat();
+            closeMobileSidebar();
+        }
+
+        // Close mobile sidebar when clicking outside
+        document.addEventListener('click', (e) => {
+            const mobileSidebar = document.getElementById('mobileSidebar');
+            const hamburgerBtn = document.getElementById('hamburgerBtn');
+            if (mobileSidebar && !mobileSidebar.contains(e.target) && !hamburgerBtn.contains(e.target)) {
+                closeMobileSidebar();
+            }
+        });
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/static/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered:', registration);
+                    })
+                    .catch((error) => {
+                        console.log('SW registration failed:', error);
+                    });
+            });
+        }
+
+        // Settings Modal Functions
+        const settings = {
+            ollamaHost: localStorage.getItem('ollamaHost') || '',
+            defaultModel: localStorage.getItem('defaultModel') || '',
+            fontSize: localStorage.getItem('fontSize') || 'medium',
+            theme: localStorage.getItem('theme') || 'dark',
+            autoScroll: localStorage.getItem('autoScroll') !== 'false',
+            soundEnabled: localStorage.getItem('soundEnabled') !== 'false',
+            maxRecordingTime: parseInt(localStorage.getItem('maxRecordingTime')) || 1
+        };
+
+        function openSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+            const statusEl = document.getElementById('connectionStatus');
+            const modelSelect = document.getElementById('settingsDefaultModel');
+
+            // Load current settings into form
+            document.getElementById('settingsOllamaHost').value = settings.ollamaHost;
+            document.getElementById('settingsFontSize').value = settings.fontSize;
+            document.getElementById('settingsMaxRecordingTime').value = settings.maxRecordingTime;
+            document.getElementById('settingsAutoScroll').checked = settings.autoScroll;
+            document.getElementById('settingsSound').checked = settings.soundEnabled;
+
+            // Clear connection status
+            statusEl.classList.add('hidden');
+
+            // If we have a saved host, auto-test connection and restore saved default model
+            if (settings.ollamaHost) {
+                modelSelect.innerHTML = '<option value="">Loading models...</option>';
+                modelSelect.disabled = true;
+                setTimeout(() => {
+                    testOllamaConnection().then(() => {
+                        // After connection test, restore the saved default model if it exists
+                        if (settings.defaultModel) {
+                            const options = Array.from(modelSelect.options);
+                            const exists = options.some(opt => opt.value === settings.defaultModel);
+                            if (exists) {
+                                modelSelect.value = settings.defaultModel;
+                            } else {
+                                // Add the saved model if not in the list (e.g., if connection to different host)
+                                const option = document.createElement('option');
+                                option.value = settings.defaultModel;
+                                option.textContent = settings.defaultModel;
+                                option.style.backgroundColor = 'rgb(30, 41, 59)';
+                                option.style.color = 'white';
+                                modelSelect.appendChild(option);
+                                modelSelect.value = settings.defaultModel;
+                            }
+                        }
+                    });
+                }, 300);
+            } else {
+                // No saved host - can't use default model without a host
+                modelSelect.innerHTML = '<option value="">Enter Ollama host URL and test connection</option>';
+                modelSelect.disabled = true;
+                // Clear the saved default model since we have no host
+                settings.defaultModel = '';
+                localStorage.removeItem('defaultModel');
+            }
+
+            // Show modal
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+        }
+
+        function saveSettings() {
+            // Get values from form
+            settings.ollamaHost = document.getElementById('settingsOllamaHost').value.trim();
+            settings.defaultModel = document.getElementById('settingsDefaultModel').value;
+            settings.fontSize = document.getElementById('settingsFontSize').value;
+            settings.maxRecordingTime = parseInt(document.getElementById('settingsMaxRecordingTime').value) || 1;
+            settings.autoScroll = document.getElementById('settingsAutoScroll').checked;
+            settings.soundEnabled = document.getElementById('settingsSound').checked;
+
+            // If no host, clear the default model (can't use a model without a host)
+            if (!settings.ollamaHost) {
+                settings.defaultModel = '';
+            }
+
+            // Save to localStorage
+            localStorage.setItem('ollamaHost', settings.ollamaHost);
+            localStorage.setItem('defaultModel', settings.defaultModel);
+            localStorage.setItem('fontSize', settings.fontSize);
+            localStorage.setItem('maxRecordingTime', settings.maxRecordingTime);
+            localStorage.setItem('autoScroll', settings.autoScroll);
+            localStorage.setItem('soundEnabled', settings.soundEnabled);
+
+            // Apply settings
+            applySettings();
+
+            closeSettingsModal();
+            showNotification('Settings saved successfully', 'success');
+        }
+
+        function applySettings() {
+            // Apply font size
+            document.body.classList.remove('text-xs', 'text-sm', 'text-base', 'text-lg');
+            const fontSizeMap = { small: 'text-xs', medium: 'text-base', large: 'text-lg' };
+            document.body.classList.add(fontSizeMap[settings.fontSize] || 'text-base');
+
+            // Apply other settings as needed
+            console.log('Settings applied:', settings);
+        }
+
+        function resetSettings() {
+            showConfirmModal('Reset Settings', 'Reset all settings to defaults?', () => {
+                settings.ollamaHost = '';
+                settings.defaultModel = '';
+                settings.fontSize = 'medium';
+                settings.autoScroll = true;
+                settings.soundEnabled = true;
+
+                localStorage.removeItem('ollamaHost');
+                localStorage.removeItem('defaultModel');
+                localStorage.removeItem('fontSize');
+                localStorage.removeItem('autoScroll');
+                localStorage.removeItem('soundEnabled');
+
+                // Reload form with defaults
+                document.getElementById('settingsOllamaHost').value = '';
+                document.getElementById('settingsDefaultModel').value = '';
+                document.getElementById('settingsFontSize').value = 'medium';
+                document.getElementById('settingsAutoScroll').checked = true;
+                document.getElementById('settingsSound').checked = true;
+
+                applySettings();
+                showNotification('Settings reset to defaults', 'success');
+            });
+        }
+
+        function exportConversations() {
+            fetch('/api/conversations')
+                .then(response => response.json())
+                .then(conversations => {
+                    const dataStr = JSON.stringify(conversations, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `voice2ai-conversations-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    showNotification('Conversations exported', 'success');
+                })
+                .catch(err => {
+                    console.error('Export failed:', err);
+                    showNotification('Failed to export conversations', 'error');
+                });
+        }
+
+        function importConversations(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const conversations = JSON.parse(e.target.result);
+                    showNotification('Import feature coming soon', 'info');
+                    console.log('Imported data:', conversations);
+                } catch (err) {
+                    showNotification('Invalid JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+
+        // Apply settings on page load
+        applySettings();
+
+        // Test Ollama Connection and populate model dropdowns
+        async function testOllamaConnection() {
+            const hostInput = document.getElementById('settingsOllamaHost');
+            const testBtn = document.getElementById('testConnectionBtn');
+            const testText = document.getElementById('testConnectionText');
+            const statusEl = document.getElementById('connectionStatus');
+            const modelSelect = document.getElementById('settingsDefaultModel');
+
+            const hostUrl = hostInput.value.trim();
+            if (!hostUrl) {
+                showNotification('Please enter an Ollama host URL', 'error');
+                return;
+            }
+
+            // Show loading state
+            testBtn.disabled = true;
+            testBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            testText.textContent = 'Testing...';
+
+            try {
+                // Test connection via backend proxy (avoids CORS)
+                const formData = new FormData();
+                formData.append('host', hostUrl);
+
+                const response = await fetch('/api/models/test', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const models = result.models || [];
+
+                    if (models.length === 0) {
+                        statusEl.textContent = 'Connected but no models found. Install models with: ollama pull [model-name]';
+                        statusEl.className = 'text-yellow-400 text-xs mt-1';
+                        statusEl.classList.remove('hidden');
+                        modelSelect.innerHTML = '<option value="">No models available</option>';
+                        modelSelect.disabled = true;
+                    } else {
+                        // Connection successful - populate dropdowns
+                        statusEl.textContent = `Connected! Found ${models.length} model(s)`;
+                        statusEl.className = 'text-green-400 text-xs mt-1';
+                        statusEl.classList.remove('hidden');
+
+                        // Populate settings dropdown
+                        populateModelDropdowns(models, modelSelect);
+                        modelSelect.disabled = false;
+
+                        showNotification('Connection successful! Models loaded.', 'success');
+                    }
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (err) {
+                console.error('Connection test failed:', err);
+                statusEl.textContent = `Connection failed: ${err.message || 'Could not connect to Ollama'}`;
+                statusEl.className = 'text-red-400 text-xs mt-1';
+                statusEl.classList.remove('hidden');
+                showNotification('Failed to connect to Ollama host', 'error');
+
+                // Keep dropdown disabled
+                modelSelect.innerHTML = '<option value="">Connection failed</option>';
+                modelSelect.disabled = true;
+            } finally {
+                // Reset button state
+                testBtn.disabled = false;
+                testBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                testText.textContent = 'Test Connection';
+            }
+        }
+
+        function populateModelDropdowns(models, selectElement) {
+            // Clear existing options except default
+            const currentValue = selectElement.value;
+            selectElement.innerHTML = '<option value="">Default model</option>';
+
+            // Add models from Ollama
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.name;
+                option.textContent = model.name;
+                option.style.backgroundColor = 'rgb(30, 41, 59)';
+                option.style.color = 'white';
+                selectElement.appendChild(option);
+            });
+
+            // Restore previous selection if it exists
+            if (currentValue && models.some(m => m.name === currentValue)) {
+                selectElement.value = currentValue;
+            }
+        }
+    </script>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div id="settingsModalContent" class="bg-slate-800/95 rounded-2xl border border-white/20 w-full max-w-lg mx-4 max-h-[85vh] overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 class="text-white text-xl font-semibold">Settings</h2>
+                <button onclick="closeSettingsModal()" class="p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar space-y-6">
+                <!-- Appearance Section -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                        </svg>
+                        Appearance
+                    </h3>
+                    <div class="pl-6 space-y-4">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Font Size</label>
+                            <select id="settingsFontSize" class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50">
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ollama Configuration -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Ollama Configuration
+                    </h3>
+                    <div class="pl-6 space-y-4">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Ollama Host URL</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="settingsOllamaHost" placeholder="http://192.168.50.209:11434" class="flex-1 bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder-gray-500">
+                                <button id="testConnectionBtn" onclick="testOllamaConnection()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    <span id="testConnectionText">Test Connection</span>
+                                </button>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-1">Leave empty to use server default</p>
+                            <p id="connectionStatus" class="text-xs mt-1 hidden"></p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Default Model</label>
+                            <select id="settingsDefaultModel" disabled class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <option value="">Test connection to load models...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
+                        </svg>
+                        Preferences
+                    </h3>
+                    <div class="pl-6 space-y-4">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Max Recording Time</label>
+                            <select id="settingsMaxRecordingTime" class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50">
+                                <option value="1">1 minute</option>
+                                <option value="2">2 minutes</option>
+                                <option value="3">3 minutes</option>
+                                <option value="4">4 minutes</option>
+                                <option value="5">5 minutes</option>
+                            </select>
+                        </div>
+                        <label class="flex items-center justify-between cursor-pointer group">
+                            <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Auto-scroll to new messages</span>
+                            <input type="checkbox" id="settingsAutoScroll" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
+                        </label>
+                        <label class="flex items-center justify-between cursor-pointer group">
+                            <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Sound effects</span>
+                            <input type="checkbox" id="settingsSound" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                        </svg>
+                        Data Management
+                    </h3>
+                    <div class="pl-6 space-y-3">
+                        <button onclick="exportConversations()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Export Conversations
+                        </button>
+                        <label class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Import Conversations
+                            <input type="file" accept=".json" onchange="importConversations(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between p-6 border-t border-white/10 bg-slate-800/50">
+                <button onclick="resetSettings()" class="px-4 py-2 text-gray-400 text-sm hover:text-white transition-colors">
+                    Reset to Defaults
+                </button>
+                <div class="flex gap-3">
+                    <button onclick="closeSettingsModal()" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="saveSettings()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white text-sm font-medium transition-colors">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Click outside to close -->
+    <script>
+        document.getElementById('settingsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSettingsModal();
+            }
+        });
     </script>
 </body>
 </html>
