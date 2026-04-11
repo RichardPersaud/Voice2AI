@@ -13,6 +13,7 @@ services:
       - ./uploads:/app/uploads
       - whisper-cache:/root/.cache/whisper
       - ./conversations.db:/app/conversations.db
+      - ./app:/app/app
     restart: unless-stopped
 
 volumes:

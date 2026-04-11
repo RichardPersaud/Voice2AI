@@ -114,6 +114,29 @@ async def get_models():
         return {"models": []}
 
 
+@app.post("/api/models/test")
+async def test_ollama_connection(host: str = Form(...)):
+    """Test connection to a custom Ollama host and return available models."""
+    try:
+        # Validate URL
+        if not host.startswith(('http://', 'https://')):
+            raise HTTPException(status_code=400, detail="Invalid URL. Must start with http:// or https://")
+
+        response = requests.get(f"{host}/api/tags", timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            return {"success": True, "models": data.get("models", [])}
+        else:
+            return {"success": False, "error": f"HTTP {response.status_code}", "models": []}
+    except requests.exceptions.ConnectionError:
+        return {"success": False, "error": "Could not connect to Ollama server", "models": []}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "Connection timed out", "models": []}
+    except Exception as e:
+        print(f"Error testing connection: {str(e)}")
+        return {"success": False, "error": str(e), "models": []}
+
+
 @app.get("/api/conversations")
 async def get_conversations():
     """List all past conversations."""

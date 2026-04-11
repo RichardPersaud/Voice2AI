@@ -761,8 +761,9 @@
             if (isRecording) {
                 stopRecording();
             } else {
-                // Check if a model is selected before starting a new recording
-                if (!modelSelect.value) {
+                // Check if a model is selected (or has fallback) before starting a new recording
+                const effectiveModel = modelSelect.value || settings.defaultModel;
+                if (!effectiveModel) {
                     showError('Please select an Ollama model before recording.');
                     return;
                 }
@@ -856,8 +857,8 @@
                 const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
                 formData.append('audio', audioBlob, `recording.${extension}`);
 
-                // Add selected model if one is chosen
-                const selectedModel = modelSelect.value;
+                // Add selected model - priority: 1) main dropdown, 2) settings default, 3) server default
+                const selectedModel = modelSelect.value || settings.defaultModel;
                 if (selectedModel) {
                     formData.append('model', selectedModel);
                 }
@@ -1436,7 +1437,8 @@
 
             const formData = new FormData();
             formData.append('text', text);
-            const selectedModel = modelSelect.value;
+            // Priority: 1) main dropdown, 2) settings default, 3) server default
+            const selectedModel = modelSelect.value || settings.defaultModel;
             if (selectedModel) formData.append('model', selectedModel);
             if (currentConversationId) formData.append('conversation_id', currentConversationId);
 
@@ -1572,7 +1574,7 @@
 
             switch (action) {
                 case 'settings':
-                    showNotification('Settings - Coming soon!', 'info');
+                    openSettingsModal();
                     break;
                 case 'history': {
                     // Toggle left sidebar (conversation list)
@@ -1655,6 +1657,430 @@
                     });
             });
         }
+
+        // Settings Modal Functions
+        const settings = {
+            ollamaHost: localStorage.getItem('ollamaHost') || '',
+            defaultModel: localStorage.getItem('defaultModel') || '',
+            fontSize: localStorage.getItem('fontSize') || 'medium',
+            theme: localStorage.getItem('theme') || 'dark',
+            autoScroll: localStorage.getItem('autoScroll') !== 'false',
+            soundEnabled: localStorage.getItem('soundEnabled') !== 'false'
+        };
+
+        function openSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+            const statusEl = document.getElementById('connectionStatus');
+            const modelSelect = document.getElementById('settingsDefaultModel');
+
+            // Load current settings into form
+            document.getElementById('settingsOllamaHost').value = settings.ollamaHost;
+            document.getElementById('settingsFontSize').value = settings.fontSize;
+            document.getElementById('settingsAutoScroll').checked = settings.autoScroll;
+            document.getElementById('settingsSound').checked = settings.soundEnabled;
+
+            // Clear connection status
+            statusEl.classList.add('hidden');
+
+            // If we have a saved host, auto-test connection and restore saved default model
+            if (settings.ollamaHost) {
+                modelSelect.innerHTML = '<option value="">Loading models...</option>';
+                modelSelect.disabled = true;
+                setTimeout(() => {
+                    testOllamaConnection().then(() => {
+                        // After connection test, restore the saved default model if it exists
+                        if (settings.defaultModel) {
+                            const options = Array.from(modelSelect.options);
+                            const exists = options.some(opt => opt.value === settings.defaultModel);
+                            if (exists) {
+                                modelSelect.value = settings.defaultModel;
+                            } else {
+                                // Add the saved model if not in the list (e.g., if connection to different host)
+                                const option = document.createElement('option');
+                                option.value = settings.defaultModel;
+                                option.textContent = settings.defaultModel;
+                                option.style.backgroundColor = 'rgb(30, 41, 59)';
+                                option.style.color = 'white';
+                                modelSelect.appendChild(option);
+                                modelSelect.value = settings.defaultModel;
+                            }
+                        }
+                    });
+                }, 300);
+            } else {
+                // No saved host - populate with saved default model if any
+                if (settings.defaultModel) {
+                    modelSelect.innerHTML = `<option value="${settings.defaultModel}" selected>${settings.defaultModel}</option>`;
+                    modelSelect.disabled = false;
+                } else {
+                    modelSelect.innerHTML = '<option value="">Test connection to load models...</option>';
+                    modelSelect.disabled = true;
+                }
+            }
+
+            // Show modal
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeSettingsModal() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsModalContent');
+
+            content.classList.remove('scale-100', 'opacity-100');
+            content.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 200);
+        }
+
+        function saveSettings() {
+            // Get values from form
+            settings.ollamaHost = document.getElementById('settingsOllamaHost').value.trim();
+            settings.defaultModel = document.getElementById('settingsDefaultModel').value;
+            settings.fontSize = document.getElementById('settingsFontSize').value;
+            settings.autoScroll = document.getElementById('settingsAutoScroll').checked;
+            settings.soundEnabled = document.getElementById('settingsSound').checked;
+
+            // Save to localStorage
+            localStorage.setItem('ollamaHost', settings.ollamaHost);
+            localStorage.setItem('defaultModel', settings.defaultModel);
+            localStorage.setItem('fontSize', settings.fontSize);
+            localStorage.setItem('autoScroll', settings.autoScroll);
+            localStorage.setItem('soundEnabled', settings.soundEnabled);
+
+            // Apply settings
+            applySettings();
+
+            // Don't overwrite main dropdown - default model is only used as fallback
+            // The main dropdown selection takes priority, default model is fallback only
+
+            closeSettingsModal();
+            showNotification('Settings saved successfully', 'success');
+        }
+
+        function applySettings() {
+            // Apply font size
+            document.body.classList.remove('text-xs', 'text-sm', 'text-base', 'text-lg');
+            const fontSizeMap = { small: 'text-xs', medium: 'text-base', large: 'text-lg' };
+            document.body.classList.add(fontSizeMap[settings.fontSize] || 'text-base');
+
+            // Apply other settings as needed
+            console.log('Settings applied:', settings);
+        }
+
+        function resetSettings() {
+            showConfirmModal('Reset Settings', 'Reset all settings to defaults?', () => {
+                settings.ollamaHost = '';
+                settings.defaultModel = '';
+                settings.fontSize = 'medium';
+                settings.autoScroll = true;
+                settings.soundEnabled = true;
+
+                localStorage.removeItem('ollamaHost');
+                localStorage.removeItem('defaultModel');
+                localStorage.removeItem('fontSize');
+                localStorage.removeItem('autoScroll');
+                localStorage.removeItem('soundEnabled');
+
+                // Reload form with defaults
+                document.getElementById('settingsOllamaHost').value = '';
+                document.getElementById('settingsDefaultModel').value = '';
+                document.getElementById('settingsFontSize').value = 'medium';
+                document.getElementById('settingsAutoScroll').checked = true;
+                document.getElementById('settingsSound').checked = true;
+
+                applySettings();
+                showNotification('Settings reset to defaults', 'success');
+            });
+        }
+
+        function exportConversations() {
+            fetch('/api/conversations')
+                .then(response => response.json())
+                .then(conversations => {
+                    const dataStr = JSON.stringify(conversations, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `voice2ai-conversations-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    showNotification('Conversations exported', 'success');
+                })
+                .catch(err => {
+                    console.error('Export failed:', err);
+                    showNotification('Failed to export conversations', 'error');
+                });
+        }
+
+        function importConversations(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const conversations = JSON.parse(e.target.result);
+                    showNotification('Import feature coming soon', 'info');
+                    console.log('Imported data:', conversations);
+                } catch (err) {
+                    showNotification('Invalid JSON file', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ''; // Reset input
+        }
+
+        // Apply settings on page load
+        applySettings();
+
+        // Test Ollama Connection and populate model dropdowns
+        async function testOllamaConnection() {
+            const hostInput = document.getElementById('settingsOllamaHost');
+            const testBtn = document.getElementById('testConnectionBtn');
+            const testText = document.getElementById('testConnectionText');
+            const statusEl = document.getElementById('connectionStatus');
+            const modelSelect = document.getElementById('settingsDefaultModel');
+
+            const hostUrl = hostInput.value.trim();
+            if (!hostUrl) {
+                showNotification('Please enter an Ollama host URL', 'error');
+                return;
+            }
+
+            // Show loading state
+            testBtn.disabled = true;
+            testBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            testText.textContent = 'Testing...';
+
+            try {
+                // Test connection via backend proxy (avoids CORS)
+                const formData = new FormData();
+                formData.append('host', hostUrl);
+
+                const response = await fetch('/api/models/test', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const models = result.models || [];
+
+                    if (models.length === 0) {
+                        statusEl.textContent = 'Connected but no models found. Install models with: ollama pull [model-name]';
+                        statusEl.className = 'text-yellow-400 text-xs mt-1';
+                        statusEl.classList.remove('hidden');
+                        modelSelect.innerHTML = '<option value="">No models available</option>';
+                        modelSelect.disabled = true;
+                    } else {
+                        // Connection successful - populate dropdowns
+                        statusEl.textContent = `Connected! Found ${models.length} model(s)`;
+                        statusEl.className = 'text-green-400 text-xs mt-1';
+                        statusEl.classList.remove('hidden');
+
+                        // Populate settings dropdown
+                        populateModelDropdowns(models, modelSelect);
+                        modelSelect.disabled = false;
+
+                        // Also populate main page dropdown
+                        const mainModelSelect = document.getElementById('modelSelect');
+                        populateModelDropdowns(models, mainModelSelect);
+
+                        showNotification('Connection successful! Models loaded.', 'success');
+                    }
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (err) {
+                console.error('Connection test failed:', err);
+                statusEl.textContent = `Connection failed: ${err.message || 'Could not connect to Ollama'}`;
+                statusEl.className = 'text-red-400 text-xs mt-1';
+                statusEl.classList.remove('hidden');
+                showNotification('Failed to connect to Ollama host', 'error');
+
+                // Keep dropdown disabled
+                modelSelect.innerHTML = '<option value="">Connection failed</option>';
+                modelSelect.disabled = true;
+            } finally {
+                // Reset button state
+                testBtn.disabled = false;
+                testBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                testText.textContent = 'Test Connection';
+            }
+        }
+
+        function populateModelDropdowns(models, selectElement) {
+            // Clear existing options except default
+            const currentValue = selectElement.value;
+            selectElement.innerHTML = '<option value="">Default model</option>';
+
+            // Add models from Ollama
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model.name;
+                option.textContent = model.name;
+                option.style.backgroundColor = 'rgb(30, 41, 59)';
+                option.style.color = 'white';
+                selectElement.appendChild(option);
+            });
+
+            // Restore previous selection if it exists
+            if (currentValue && models.some(m => m.name === currentValue)) {
+                selectElement.value = currentValue;
+            }
+        }
+    </script>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div id="settingsModalContent" class="bg-slate-800/95 rounded-2xl border border-white/20 w-full max-w-lg mx-4 max-h-[85vh] overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-200">
+            <!-- Header -->
+            <div class="flex items-center justify-between p-6 border-b border-white/10">
+                <h2 class="text-white text-xl font-semibold">Settings</h2>
+                <button onclick="closeSettingsModal()" class="p-2 hover:bg-white/10 rounded-lg text-white/70 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="p-6 overflow-y-auto max-h-[60vh] custom-scrollbar space-y-6">
+                <!-- Appearance Section -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                        </svg>
+                        Appearance
+                    </h3>
+                    <div class="pl-6 space-y-4">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Font Size</label>
+                            <select id="settingsFontSize" class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50">
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ollama Configuration -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        Ollama Configuration
+                    </h3>
+                    <div class="pl-6 space-y-4">
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Ollama Host URL</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="settingsOllamaHost" placeholder="http://192.168.50.209:11434" class="flex-1 bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 placeholder-gray-500">
+                                <button id="testConnectionBtn" onclick="testOllamaConnection()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-white text-sm font-medium transition-colors whitespace-nowrap flex items-center gap-2">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                    </svg>
+                                    <span id="testConnectionText">Test Connection</span>
+                                </button>
+                            </div>
+                            <p class="text-gray-500 text-xs mt-1">Leave empty to use server default</p>
+                            <p id="connectionStatus" class="text-xs mt-1 hidden"></p>
+                        </div>
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Default Model</label>
+                            <select id="settingsDefaultModel" disabled class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <option value="">Test connection to load models...</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path>
+                        </svg>
+                        Preferences
+                    </h3>
+                    <div class="pl-6 space-y-3">
+                        <label class="flex items-center justify-between cursor-pointer group">
+                            <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Auto-scroll to new messages</span>
+                            <input type="checkbox" id="settingsAutoScroll" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
+                        </label>
+                        <label class="flex items-center justify-between cursor-pointer group">
+                            <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Sound effects</span>
+                            <input type="checkbox" id="settingsSound" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="space-y-4">
+                    <h3 class="text-white/90 font-medium flex items-center gap-2">
+                        <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                        </svg>
+                        Data Management
+                    </h3>
+                    <div class="pl-6 space-y-3">
+                        <button onclick="exportConversations()" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Export Conversations
+                        </button>
+                        <label class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Import Conversations
+                            <input type="file" accept=".json" onchange="importConversations(event)" class="hidden">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="flex items-center justify-between p-6 border-t border-white/10 bg-slate-800/50">
+                <button onclick="resetSettings()" class="px-4 py-2 text-gray-400 text-sm hover:text-white transition-colors">
+                    Reset to Defaults
+                </button>
+                <div class="flex gap-3">
+                    <button onclick="closeSettingsModal()" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="saveSettings()" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg text-white text-sm font-medium transition-colors">
+                        Save Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Click outside to close -->
+    <script>
+        document.getElementById('settingsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSettingsModal();
+            }
+        });
     </script>
 </body>
 </html>
