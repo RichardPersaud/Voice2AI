@@ -1489,13 +1489,27 @@
                     showNotification('Settings - Coming soon!', 'info');
                     break;
                 case 'history':
-                    // Open mobile sidebar on mobile devices
+                    // Toggle sidebar visibility based on screen size
+                    const desktopSidebar = document.querySelector('.desktop-sidebar');
+                    const mobileSidebar = document.getElementById('mobileSidebar');
+                    
                     if (window.innerWidth < 768) {
-                        openMobileSidebar();
+                        // Mobile: toggle mobile sidebar
+                        if (mobileSidebar.classList.contains('visible-sidebar')) {
+                            closeMobileSidebar();
+                        } else {
+                            openMobileSidebar();
+                        }
                     } else {
-                        document.getElementById('conversationList').scrollIntoView({ behavior: 'smooth' });
+                        // Desktop: toggle desktop sidebar visibility
+                        if (desktopSidebar.style.display === 'none' || desktopSidebar.style.display === '') {
+                            desktopSidebar.style.display = 'flex';
+                            showNotification('History sidebar shown', 'success');
+                        } else {
+                            desktopSidebar.style.display = 'none';
+                            showNotification('History sidebar hidden', 'success');
+                        }
                     }
-                    showNotification('Showing conversation history', 'success');
                     break;
                 case 'help':
                     showNotification('Help & Support - Coming soon!', 'info');
