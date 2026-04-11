@@ -492,21 +492,6 @@
         <div class="main-content w-full max-w-full md:max-w-3xl lg:max-w-4xl xl:max-w-5xl">
             <!-- Main Card -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
-                <!-- Model Selector -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between">
-                        <label for="modelSelect" class="text-gray-400 text-xs font-semibold uppercase tracking-wide">Ollama Model</label>
-                        <span id="modelLoading" class="text-gray-500 text-xs hidden">Loading...</span>
-                    </div>
-                    <select
-                        id="modelSelect"
-                        class="mt-2 w-full bg-slate-800 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 appearance-none cursor-pointer"
-                        style="background-color: rgb(30, 41, 59);"
-                    >
-                        <option value="" style="background-color: rgb(30, 41, 59); color: white;">Default model</option>
-                    </select>
-                </div>
-
                 <!-- Status -->
                 <div id="status" class="text-center mb-6">
                     <span id="statusText" class="text-gray-300 text-sm">Ready to listen</span>
@@ -633,8 +618,6 @@
         let currentConversationId = null;
 
         // UI Elements
-        const modelSelect = document.getElementById('modelSelect');
-        const modelLoading = document.getElementById('modelLoading');
         const recordBtn = document.getElementById('recordBtn');
         const micIcon = document.getElementById('micIcon');
         const stopIcon = document.getElementById('stopIcon');
@@ -761,10 +744,9 @@
             if (isRecording) {
                 stopRecording();
             } else {
-                // Check if a model is selected (or has fallback) before starting a new recording
-                const effectiveModel = modelSelect.value || settings.defaultModel;
-                if (!effectiveModel) {
-                    showError('Please select an Ollama model before recording.');
+                // Check if a model is configured in settings before starting recording
+                if (!settings.defaultModel) {
+                    showError('Please configure an Ollama model in Settings before recording.');
                     return;
                 }
                 startRecording();
@@ -857,10 +839,9 @@
                 const extension = mimeType.includes('webm') ? 'webm' : 'mp4';
                 formData.append('audio', audioBlob, `recording.${extension}`);
 
-                // Add selected model - priority: 1) main dropdown, 2) settings default, 3) server default
-                const selectedModel = modelSelect.value || settings.defaultModel;
-                if (selectedModel) {
-                    formData.append('model', selectedModel);
+                // Use the configured model from settings
+                if (settings.defaultModel) {
+                    formData.append('model', settings.defaultModel);
                 }
 
                 // Add current conversation ID if it exists
@@ -1292,37 +1273,7 @@
             statusText.textContent = 'Ready to listen'; }, 2000);
         }
 
-        // Load available models on page load
-        async function loadModels() {
-            try {
-                modelLoading.classList.remove('hidden');
-                const response = await fetch('/api/models');
-                const data = await response.json();
-
-                if (data.models && data.models.length > 0) {
-                    // Clear existing options except the default
-                    modelSelect.innerHTML = '<option value="">Default model</option>';
-
-                    // Add each model as an option
-                    data.models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.name;
-                        option.textContent = model.name;
-                        option.style.backgroundColor = 'rgb(30, 41, 59)';
-                        option.style.color = 'white';
-                        modelSelect.appendChild(option);
-                    });
-                }
-            } catch (err) {
-                console.error('Error loading models:', err);
-                // If we can't load models, just keep the default option
-            } finally {
-                modelLoading.classList.add('hidden');
-            }
-        }
-
         // Initialize
-        loadModels();
         loadConversations();
         updateProfileAvatar();
 
@@ -1437,9 +1388,8 @@
 
             const formData = new FormData();
             formData.append('text', text);
-            // Priority: 1) main dropdown, 2) settings default, 3) server default
-            const selectedModel = modelSelect.value || settings.defaultModel;
-            if (selectedModel) formData.append('model', selectedModel);
+            // Use the configured model from settings
+            if (settings.defaultModel) formData.append('model', settings.defaultModel);
             if (currentConversationId) formData.append('conversation_id', currentConversationId);
 
             try {
@@ -1709,14 +1659,12 @@
                     });
                 }, 300);
             } else {
-                // No saved host - populate with saved default model if any
-                if (settings.defaultModel) {
-                    modelSelect.innerHTML = `<option value="${settings.defaultModel}" selected>${settings.defaultModel}</option>`;
-                    modelSelect.disabled = false;
-                } else {
-                    modelSelect.innerHTML = '<option value="">Test connection to load models...</option>';
-                    modelSelect.disabled = true;
-                }
+                // No saved host - can't use default model without a host
+                modelSelect.innerHTML = '<option value="">Enter Ollama host URL and test connection</option>';
+                modelSelect.disabled = true;
+                // Clear the saved default model since we have no host
+                settings.defaultModel = '';
+                localStorage.removeItem('defaultModel');
             }
 
             // Show modal
@@ -1749,6 +1697,11 @@
             settings.autoScroll = document.getElementById('settingsAutoScroll').checked;
             settings.soundEnabled = document.getElementById('settingsSound').checked;
 
+            // If no host, clear the default model (can't use a model without a host)
+            if (!settings.ollamaHost) {
+                settings.defaultModel = '';
+            }
+
             // Save to localStorage
             localStorage.setItem('ollamaHost', settings.ollamaHost);
             localStorage.setItem('defaultModel', settings.defaultModel);
@@ -1758,9 +1711,6 @@
 
             // Apply settings
             applySettings();
-
-            // Don't overwrite main dropdown - default model is only used as fallback
-            // The main dropdown selection takes priority, default model is fallback only
 
             closeSettingsModal();
             showNotification('Settings saved successfully', 'success');
@@ -1894,10 +1844,6 @@
                         // Populate settings dropdown
                         populateModelDropdowns(models, modelSelect);
                         modelSelect.disabled = false;
-
-                        // Also populate main page dropdown
-                        const mainModelSelect = document.getElementById('modelSelect');
-                        populateModelDropdowns(models, mainModelSelect);
 
                         showNotification('Connection successful! Models loaded.', 'success');
                     }
