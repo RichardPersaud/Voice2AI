@@ -687,6 +687,72 @@
                 
                 // Pleasant notification sound
                 osc.frequency.setValueAtTime(600, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, ctx.currentTime + 0.15);
+                
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playAlert() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Alert sound - higher pitched, attention grabbing
+                osc.frequency.setValueAtTime(1000, ctx.currentTime);
+                osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1);
+                osc.frequency.setValueAtTime(1000, ctx.currentTime + 0.2);
+                
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime + 0.1);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.4);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
+
+        function playDelete() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                // Deletion sound - descending, lower pitch
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.2);
+                
+                gain.gain.setValueAtTime(0.2, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.25);
+            } catch (e) {
+                console.log('Audio not supported');
+            }
+        }
                 osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.15);
                 
                 gain.gain.setValueAtTime(0, ctx.currentTime);
@@ -1121,6 +1187,7 @@
 
         // Custom confirmation modal functions
         function showConfirmModal(title, message, onConfirm, onCancel) {
+            playAlert();
             const modal = document.getElementById('confirmModal');
             const content = document.getElementById('confirmModalContent');
             const titleEl = document.getElementById('confirmModalTitle');
@@ -1182,6 +1249,7 @@
         }
 
         async function deleteConversation(id) {
+            playDelete();
             showConfirmModal('Delete Conversation', 'Delete this conversation?', async () => {
                 try {
                     const response = await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
@@ -1384,25 +1452,25 @@
                 return;
             }
 
-            // Show confirmation modal
-            if (!confirm('Delete this message and its response?')) return;
+            playDelete();
+            showConfirmModal('Delete Message', 'Delete this message and its response?', async () => {
+                const formData = new FormData();
+                formData.append('conversation_id', currentConversationId);
+                formData.append('content', content);
 
-            const formData = new FormData();
-            formData.append('conversation_id', currentConversationId);
-            formData.append('content', content);
-
-            try {
-                const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
-                const result = await response.json();
-                if (result.success) {
-                    await selectConversation(currentConversationId);
-                    showNotification('Message deleted', 'success');
-                } else {
-                    showNotification(result.error || 'Failed to delete', 'error');
+                try {
+                    const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
+                    const result = await response.json();
+                    if (result.success) {
+                        await selectConversation(currentConversationId);
+                        showNotification('Message deleted', 'success');
+                    } else {
+                        showNotification(result.error || 'Failed to delete', 'error');
+                    }
+                } catch (err) {
+                    showNotification('Network error. Please try again.', 'error');
                 }
-            } catch (err) {
-                showNotification('Network error. Please try again.', 'error');
-            }
+            });
         }
 
         // Helper function to show notifications (replaces error toast)
