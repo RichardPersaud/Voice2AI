@@ -1492,26 +1492,13 @@
                     showNotification('Settings - Coming soon!', 'info');
                     break;
                 case 'history': {
-                    // Toggle sidebar visibility based on screen size
-                    const desktopSidebar = document.querySelector('.desktop-sidebar');
+                    // Toggle left sidebar (conversation list)
                     const mobileSidebar = document.getElementById('mobileSidebar');
                     
-                    if (window.innerWidth < 768) {
-                        // Mobile: toggle mobile sidebar
-                        if (mobileSidebar.classList.contains('visible-sidebar')) {
-                            closeMobileSidebar();
-                        } else {
-                            openMobileSidebar();
-                        }
+                    if (mobileSidebar.classList.contains('visible-sidebar')) {
+                        closeMobileSidebar();
                     } else {
-                        // Desktop: toggle desktop sidebar visibility
-                        if (desktopSidebar.classList.contains('visible')) {
-                            desktopSidebar.classList.remove('visible');
-                            showNotification('History sidebar hidden', 'success');
-                        } else {
-                            desktopSidebar.classList.add('visible');
-                            showNotification('History sidebar shown', 'success');
-                        }
+                        openMobileSidebar();
                     }
                     break;
                 }
