@@ -753,18 +753,6 @@
                 console.log('Audio not supported');
             }
         }
-                osc.frequency.linearRampToValueAtTime(1200, ctx.currentTime + 0.15);
-                
-                gain.gain.setValueAtTime(0, ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.05);
-                gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
-                
-                osc.start(ctx.currentTime);
-                osc.stop(ctx.currentTime + 0.3);
-            } catch (e) {
-                console.log('Audio not supported');
-            }
-        }
 
         async function toggleRecording() {
             // Play mic click sound
@@ -1262,6 +1250,33 @@
                     }
                 } catch (err) {
                     console.error('Error deleting conversation:', err);
+                }
+            });
+        }
+
+        async function deleteMessagePair(content) {
+            if (!currentConversationId) {
+                showNotification('No active conversation', 'error');
+                return;
+            }
+
+            playDelete();
+            showConfirmModal('Delete Message', 'Delete this message and its response?', async () => {
+                const formData = new FormData();
+                formData.append('conversation_id', currentConversationId);
+                formData.append('content', content);
+
+                try {
+                    const response = await fetch('/api/messages', { method: 'DELETE', body: formData });
+                    const result = await response.json();
+                    if (result.success) {
+                        await selectConversation(currentConversationId);
+                        showNotification('Message deleted', 'success');
+                    } else {
+                        showNotification(result.error || 'Failed to delete', 'error');
+                    }
+                } catch (err) {
+                    showNotification('Network error. Please try again.', 'error');
                 }
             });
         }
