@@ -1,17 +1,41 @@
 # 🎤 Voice Command App
 
-A modern web application that captures voice commands, transcribes them using OpenAI Whisper, and processes them through an LLM (Ollama). Designed for easy deployment on CasaOS.
+A modern web application that captures voice commands, transcribes them using OpenAI Whisper, and processes them through an LLM (Ollama). Features conversation history, configurable settings, and a beautiful dark-themed UI. Designed for easy deployment on CasaOS.
 
 <img width="1550" height="799" alt="image" src="https://github.com/user-attachments/assets/f84e5d6a-ff73-4efd-8d1b-72d20a5a31b9" />
 
-
 ## ✨ Features
 
+### Voice & Audio
 - **Voice Recording**: Simple, intuitive UI with real-time audio visualization
+- **Recording Timer**: Configurable max recording duration (1-5 minutes) with visual countdown
 - **Speech-to-Text**: Powered by OpenAI Whisper (runs locally)
+- **Multiple Audio Formats**: WebM, MP4, WAV, OGG, MP3 support
+
+### AI & LLM Integration
 - **AI Processing**: Integrates with Ollama LLM for intelligent command interpretation
-- **Modern UI**: Beautiful glassmorphism design with Tailwind CSS
-- **CasaOS Ready**: One-click deployment with Docker Compose
+- **Model Selection**: Choose from available Ollama models via Settings
+- **Connection Testing**: Test Ollama connection and fetch models from custom hosts
+- **Conversation Context**: Maintains conversation history for contextual responses
+
+### Conversation Management
+- **Persistent History**: SQLite database stores all conversations and messages
+- **Browse Conversations**: View list of past conversations with timestamps
+- **Resume Conversations**: Continue previous conversations seamlessly
+- **Delete Conversations**: Remove entire conversations or individual message pairs
+- **Text Input Fallback**: Rerun voice commands with text input for corrections
+
+### UI/UX
+- **Modern Glassmorphism Design**: Beautiful dark theme with Tailwind CSS
+- **Typing Animation**: AI responses type out character by character with markdown rendering
+- **Markdown Support**: AI responses render markdown formatting (code blocks, headers, etc.)
+- **Mobile Responsive**: Fully functional on mobile devices
+- **PWA Ready**: Service worker and manifest for installable web app
+
+### Configuration
+- **Settings Modal**: Configure Ollama host, default model, and recording timer
+- **Model Persistence**: Default model selection saved to localStorage
+- **Live Reload**: Docker volume mount for development changes
 
 ## 🚀 Quick Start (CasaOS)
 
@@ -22,7 +46,7 @@ A modern web application that captures voice commands, transcribes them using Op
    cd voice-command-app
    docker-compose up -d
    ```
-4. **Access the app** at `http://your-server-ip:8000`
+4. **Access the app** at `http://your-server-ip:8080`
 
 ## 🏗️ Manual Deployment
 
@@ -49,7 +73,7 @@ A modern web application that captures voice commands, transcribes them using Op
 
 4. **Verify health check**:
    ```bash
-   curl http://localhost:8000/health
+   curl http://localhost:8080/health
    ```
 
 ## ⚙️ Configuration
@@ -59,12 +83,25 @@ A modern web application that captures voice commands, transcribes them using Op
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OLLAMA_HOST` | `http://192.168.50.209:11434` | Ollama API endpoint |
-| `OLLAMA_MODEL` | `llama3.2:latest` | Model to use for processing |
+| `OLLAMA_MODEL` | `llama3.2:latest` | Default model for processing |
 | `MAX_UPLOAD_SIZE` | `10485760` (10MB) | Max audio file size in bytes |
+
+### Application Settings
+
+Access settings via the **gear icon** in the profile menu:
+
+- **Ollama Configuration**: Set custom Ollama host and test connection
+- **Default Model**: Select from available models on your Ollama server
+- **Recording Timer**: Set maximum recording duration (1-5 minutes)
 
 ### Changing Ollama Model
 
-Edit `docker-compose.yml` or set via environment:
+Via Settings modal (recommended):
+1. Click profile menu (top-right) → Settings
+2. Under "Model Selection", choose from available models
+3. Click Save
+
+Or via `docker-compose.yml`:
 ```yaml
 environment:
   - OLLAMA_MODEL=llama3.1:latest  # Or any installed model
@@ -73,10 +110,22 @@ environment:
 ## 📝 Usage
 
 1. **Open the app** in your browser
-2. **Click the microphone button** to start recording
-3. **Speak your command or question**
-4. **Click again** to stop recording
-5. **View the results** - transcription and AI response
+2. **Configure Settings** (first time):
+   - Set your Ollama host if different from default
+   - Select your preferred model
+   - Adjust recording timer if needed
+3. **Click the microphone button** to start recording
+4. **Speak your command or question**
+5. **Click again** or wait for timer to stop recording
+6. **View the results** - transcription and AI response
+7. **Access history** via the sidebar to resume past conversations
+
+### Managing Conversations
+
+- **View History**: Click the conversation sidebar (left) to see past chats
+- **Resume**: Click any conversation to continue where you left off
+- **Delete**: Hover over a conversation and click the trash icon
+- **Delete Message**: Hover over any message pair and click the trash icon to remove it
 
 ## 🏛️ Architecture
 
@@ -91,6 +140,12 @@ environment:
                      │  Whisper │
                      │   (STT)  │
                      └──────────┘
+                            │
+                            ↓
+                     ┌──────────┐
+                     │ SQLite   │
+                     │   (DB)   │
+                     └──────────┘
 ```
 
 ### Tech Stack
@@ -98,6 +153,7 @@ environment:
 - **Backend**: FastAPI (Python 3.10)
 - **STT**: OpenAI Whisper (local)
 - **LLM**: Ollama API
+- **Database**: SQLite (persistent conversations)
 - **Frontend**: Vanilla JS + Tailwind CSS
 - **Container**: Docker
 
@@ -106,6 +162,7 @@ environment:
 ### "Could not connect to Ollama"
 - Verify Ollama is running: `curl http://your-ollama-ip:11434/api/tags`
 - Check the `OLLAMA_HOST` matches your Ollama server IP
+- Use the Settings modal to test the connection
 - Ensure both containers are on the same network
 
 ### "Microphone not working"
@@ -116,6 +173,10 @@ environment:
 ### "Whisper model download slow"
 - First run downloads the model (~150MB for base model)
 - Mounted volume persists the cache between restarts
+
+### "Recording stops automatically"
+- Check the Recording Timer setting (default: 1 minute)
+- Adjust to 2-5 minutes in Settings if needed
 
 ### Supported Audio Formats
 - WebM (Chrome/Firefox)
@@ -129,10 +190,13 @@ voice-command-app/
 ├── app/
 │   ├── main.py           # FastAPI application
 │   ├── __init__.py
-│   ├── static/           # Static assets
+│   ├── static/           # Static assets (CSS, JS, manifest)
+│   │   ├── manifest.json # PWA manifest
+│   │   └── sw.js         # Service worker
 │   └── templates/        # HTML templates
 │       └── index.html    # Main UI
 ├── uploads/              # Temporary audio storage
+├── conversations.db      # SQLite database (created on first run)
 ├── requirements.txt      # Python dependencies
 ├── Dockerfile            # Container definition
 ├── docker-compose.yml    # CasaOS deployment
@@ -155,6 +219,9 @@ docker-compose down
 # Rebuild after changes
 docker-compose up -d --build
 
+# Restart container (for code changes with volume mount)
+docker restart voice-command-app
+
 # Access container shell
 docker exec -it voice-command-app bash
 ```
@@ -165,6 +232,7 @@ docker exec -it voice-command-app bash
 - CORS is set to allow all origins for flexibility
 - No authentication included - add your own reverse proxy with auth if needed
 - Audio files are stored temporarily and deleted after processing
+- Database is stored in a file (`conversations.db`) - back up if needed
 
 ## 🔄 CasaOS Import (Custom App)
 
@@ -173,8 +241,8 @@ If CasaOS doesn't detect docker-compose.yml:
 1. In CasaOS, go to **Apps** → **+** → **Custom Install**
 2. Set:
    - Container Image: Build from local Dockerfile
-   - Port: 8000 → 8000
-   - Volumes: whisper-cache
+   - Port: 8000 → 8080 (or your preferred external port)
+   - Volumes: whisper-cache, app code, uploads, database
 3. Environment variables as needed
 4. Save and deploy
 
