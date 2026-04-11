@@ -339,6 +339,12 @@
             line-height: 1.5;
         }
 
+        @media (min-width: 768px) {
+            .response-text pre code {
+                font-size: 12px;
+            }
+        }
+
         .response-text code:not(pre code) {
             background-color: rgba(15, 23, 42, 0.8);
             color: #e2e8f0;
@@ -346,6 +352,12 @@
             border-radius: 0.25rem;
             font-family: ui-monospace, monospace;
             font-size: 10px;
+        }
+
+        @media (min-width: 768px) {
+            .response-text code:not(pre code) {
+                font-size: 12px;
+            }
         }
 
         /* Code block wrapper for positioning */
