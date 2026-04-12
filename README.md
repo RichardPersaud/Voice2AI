@@ -14,10 +14,14 @@ A modern web application that captures voice commands, transcribes them using Op
 
 ### Web Search & Images (v2.2)
 - **Web Search**: Toggle web search to augment LLM responses with real-time DuckDuckGo results
-- <img width="50%" alt="image" src="https://github.com/user-attachments/assets/0e523c9d-f1fe-4d01-b56b-c1f9c748745b" />
+  <img width="50%" alt="image" src="https://github.com/user-attachments/assets/0e523c9d-f1fe-4d01-b56b-c1f9c748745b" />
 
 - **Image Search**: Ask for images naturally ("show me a picture of...") and get visual results inline
+  <img width="50%" alt="image" src="https://github.com/user-attachments/assets/1490c14b-e503-4e4d-bd5b-b7747a2ac462" />
+
 - **Link Previews**: Hover over any link in AI responses to see Open Graph previews with thumbnails
+  <img width="50%" alt="image" src="https://github.com/user-attachments/assets/015006d3-341c-4df6-adca-e4aff6443d46" />
+
 - **Source Citations**: AI cites sources with markdown links when using web search results
 
 ### AI & LLM Integration
