@@ -786,6 +786,11 @@
 
         async function startRecording() {
             try {
+                // Stop wake word listening while recording (microphone conflict)
+                stopWakeWordListening();
+                // Wait for recognition to fully stop
+                await new Promise(resolve => setTimeout(resolve, 300));
+
                 // Close any open action menus and notifications
                 closeActionMenu();
                 const existingNotification = document.querySelector('.notification-toast');
@@ -802,22 +807,39 @@
                 audioChunks = [];
 
                 mediaRecorder.ondataavailable = (event) => {
+                    console.log('ondataavailable fired, size:', event.data.size);
                     if (event.data.size > 0) {
                         audioChunks.push(event.data);
+                        console.log('Chunk added, total chunks:', audioChunks.length);
                     }
                 };
 
                 mediaRecorder.onstop = async () => {
+                    console.log('MediaRecorder onstop fired');
                     stream.getTracks().forEach(track => track.stop());
+                    // Small delay to ensure all ondataavailable events have fired
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    console.log('Calling processAudio with', audioChunks.length, 'chunks');
                     await processAudio();
                 };
 
-                // Start recording
-                mediaRecorder.start();
+                mediaRecorder.onerror = (e) => {
+                    console.error('MediaRecorder error:', e);
+                };
+
+                // Start recording with timeslice to collect data every 100ms
+                mediaRecorder.start(100);
                 isRecording = true;
 
                 // Start recording timer
                 startRecordingTimer();
+
+                // Stop word listening disabled - in beta
+                // if (settings.stopWordEnabled) {
+                //     setTimeout(() => {
+                //         startWakeWordListening();
+                //     }, 500);
+                // }
 
                 // Update UI
                 updateUIForRecording();
@@ -881,14 +903,27 @@
         }
 
         function stopRecording() {
+            console.log('stopRecording called, mediaRecorder state:', mediaRecorder?.state);
             // Stop the recording timer
             stopRecordingTimer();
 
             if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                // Request final data chunk before stopping to ensure all data is captured
+                mediaRecorder.requestData();
+                console.log('Calling mediaRecorder.stop()');
                 mediaRecorder.stop();
+            } else {
+                console.log('MediaRecorder not active or not found');
             }
             isRecording = false;
             updateUIForStopped();
+
+            // Wake/stop word listening disabled - in beta
+            // if (settings.wakeWordEnabled) {
+            //     setTimeout(() => {
+            //         startWakeWordListening();
+            //     }, 500);
+            // }
         }
 
         function updateUIForRecording() {
@@ -921,6 +956,24 @@
         async function processAudio() {
             try {
                 const mimeType = mediaRecorder.mimeType || 'audio/webm';
+
+                // Debug logging
+                console.log('Processing audio:', audioChunks.length, 'chunks');
+                console.log('Chunk sizes:', audioChunks.map(c => c.size));
+
+                if (audioChunks.length === 0) {
+                    showError('No audio data captured. Please try recording again.');
+                    processing.classList.add('hidden');
+                    recordBtn.disabled = false;
+                    recordBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    micIcon.classList.remove('hidden');
+                    stopIcon.classList.add('hidden');
+                    stopIcon.classList.remove('animate-spin');
+                    statusText.textContent = 'Ready to listen';
+                    instructions.classList.remove('hidden');
+                    return;
+                }
+
                 const audioBlob = new Blob(audioChunks, { type: mimeType });
 
                 // Create form data
@@ -971,7 +1024,10 @@
             micIcon.classList.remove('hidden');
             stopIcon.classList.add('hidden');
             stopIcon.classList.remove('animate-spin');
-            
+
+            // Clear audio chunks for next recording
+            audioChunks = [];
+
             statusText.textContent = 'Ready to listen';
             instructions.classList.remove('hidden');
         }
@@ -1724,6 +1780,47 @@
             });
         }
 
+        // Keyboard shortcut for recording toggle
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger if user is typing in an input, textarea, or contenteditable
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+
+            const keybind = settings.recordingKeybind || 'ralt';
+            let keyMatched = false;
+
+            switch (keybind) {
+                case 'ralt':
+                    keyMatched = e.code === 'AltRight';
+                    break;
+                case 'lalt':
+                    keyMatched = e.code === 'AltLeft';
+                    break;
+                case 'rctrl':
+                    keyMatched = e.code === 'ControlRight';
+                    break;
+                case 'lctrl':
+                    keyMatched = e.code === 'ControlLeft';
+                    break;
+                case 'space':
+                    keyMatched = e.code === 'Space';
+                    break;
+                case 'f9':
+                    keyMatched = e.code === 'F9';
+                    break;
+            }
+
+            if (keyMatched) {
+                e.preventDefault();
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
+            }
+        });
+
         // Settings Modal Functions
         const settings = {
             ollamaHost: localStorage.getItem('ollamaHost') || '',
@@ -1732,8 +1829,168 @@
             theme: localStorage.getItem('theme') || 'dark',
             autoScroll: localStorage.getItem('autoScroll') !== 'false',
             soundEnabled: localStorage.getItem('soundEnabled') !== 'false',
-            maxRecordingTime: parseInt(localStorage.getItem('maxRecordingTime')) || 1
+            maxRecordingTime: parseInt(localStorage.getItem('maxRecordingTime')) || 1,
+            recordingKeybind: localStorage.getItem('recordingKeybind') || 'ralt',
+            wakeWordEnabled: false, // Disabled - in beta
+            wakeWord: localStorage.getItem('wakeWord') || 'Hey Assistant',
+            stopWordEnabled: false, // Disabled - in beta
+            stopWord: localStorage.getItem('stopWord') || 'Stop Recording'
         };
+
+        // Wake Word Recognition
+        let wakeWordRecognition = null;
+        let isWakeWordListening = false;
+
+        function initWakeWordRecognition() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.log('Speech recognition not supported in this browser');
+                return null;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = (event) => {
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript.toLowerCase().trim();
+
+                    // Check for stop word (only works during recording)
+                    if (settings.stopWordEnabled && isRecording) {
+                        const stopWord = (settings.stopWord || 'stop recording').toLowerCase();
+                        if (transcript.includes(stopWord)) {
+                            showNotification('Stop word detected - stopping recording', 'info');
+                            stopRecording();
+                            break;
+                        }
+                    }
+
+                    // Check for wake word
+                    if (settings.wakeWordEnabled) {
+                        const wakeWord = (settings.wakeWord || 'hey assistant').toLowerCase();
+                        if (transcript.includes(wakeWord)) {
+                            if (isRecording) {
+                                // Wake word detected while recording - stop it
+                                showNotification('Wake word detected - stopping recording', 'info');
+                                stopRecording();
+                            } else {
+                                // Wake word detected while not recording - start it
+                                showNotification('Wake word detected - starting recording', 'info');
+                                startRecording();
+                            }
+                            break;
+                        }
+                    }
+                }
+            };
+
+            recognition.onerror = (event) => {
+                isWakeWordListening = false;
+                if (event.error === 'not-allowed') {
+                    console.log('Microphone permission denied for wake word');
+                    showNotification('Microphone permission needed for wake word', 'error');
+                } else if (event.error !== 'aborted') {
+                    console.log('Wake word recognition error:', event.error);
+                    // Restart on other errors - keep listening if wake word or stop word is enabled
+                    const shouldListen = settings.wakeWordEnabled || (settings.stopWordEnabled && isRecording);
+                    if (shouldListen) {
+                        setTimeout(() => {
+                            if (wakeWordRecognition && (settings.wakeWordEnabled || settings.stopWordEnabled) && !isWakeWordListening) {
+                                try {
+                                    wakeWordRecognition.start();
+                                    isWakeWordListening = true;
+                                } catch (e) {}
+                            }
+                        }, 1000);
+                    }
+                }
+            };
+
+            recognition.onend = () => {
+                isWakeWordListening = false;
+                // Restart if still enabled and not recording (for wake word)
+                // OR if recording and stop word is enabled
+                const shouldListen = settings.wakeWordEnabled || (settings.stopWordEnabled && isRecording);
+                if (shouldListen && wakeWordRecognition) {
+                    // Add delay to avoid race conditions with manual stop/start cycles
+                    setTimeout(() => {
+                        try {
+                            if (!isWakeWordListening && (settings.wakeWordEnabled || settings.stopWordEnabled)) {
+                                wakeWordRecognition.start();
+                                isWakeWordListening = true;
+                            }
+                        } catch (e) {}
+                    }, 300);
+                }
+            };
+
+            return recognition;
+        }
+
+        function startWakeWordListening() {
+            if (!wakeWordRecognition) {
+                wakeWordRecognition = initWakeWordRecognition();
+            }
+            // Start listening if: wake word is enabled (and not recording), OR stop word is enabled (and recording)
+            const shouldListen = (settings.wakeWordEnabled && !isRecording) || (settings.stopWordEnabled && isRecording);
+            if (wakeWordRecognition && shouldListen) {
+                try {
+                    // Check if already running - SpeechRecognition has a 'running' property in some browsers
+                    // Also check our own state flag
+                    if (isWakeWordListening || wakeWordRecognition.running) {
+                        console.log('Wake word recognition already running, skipping start');
+                        return;
+                    }
+                    wakeWordRecognition.start();
+                    isWakeWordListening = true;
+                    console.log('Wake/stop word listening started');
+                } catch (e) {
+                    console.log('Could not start wake word recognition:', e);
+                    isWakeWordListening = false;
+                }
+            }
+        }
+
+        function stopWakeWordListening() {
+            if (wakeWordRecognition) {
+                try {
+                    wakeWordRecognition.stop();
+                    isWakeWordListening = false;
+                    console.log('Wake word listening stopped');
+                } catch (e) {
+                    // Ignore errors when stopping
+                }
+            }
+        }
+
+        // Wake/stop word disabled - in beta
+        // if (settings.wakeWordEnabled) {
+        //     setTimeout(startWakeWordListening, 1000);
+        // }
+
+        // Wake word toggle event listener (for showing/hiding input in settings)
+        document.addEventListener('DOMContentLoaded', () => {
+            const wakeWordToggle = document.getElementById('settingsWakeWordEnabled');
+            const wakeWordContainer = document.getElementById('wakeWordContainer');
+
+            if (wakeWordToggle && wakeWordContainer) {
+                wakeWordToggle.addEventListener('change', () => {
+                    wakeWordContainer.classList.toggle('hidden', !wakeWordToggle.checked);
+                });
+            }
+
+            // Stop word toggle event listener
+            const stopWordToggle = document.getElementById('settingsStopWordEnabled');
+            const stopWordContainer = document.getElementById('stopWordContainer');
+
+            if (stopWordToggle && stopWordContainer) {
+                stopWordToggle.addEventListener('change', () => {
+                    stopWordContainer.classList.toggle('hidden', !stopWordToggle.checked);
+                });
+            }
+        });
 
         function openSettingsModal() {
             const modal = document.getElementById('settingsModal');
@@ -1745,8 +2002,21 @@
             document.getElementById('settingsOllamaHost').value = settings.ollamaHost;
             document.getElementById('settingsFontSize').value = settings.fontSize;
             document.getElementById('settingsMaxRecordingTime').value = settings.maxRecordingTime;
+            document.getElementById('settingsRecordingKeybind').value = settings.recordingKeybind;
             document.getElementById('settingsAutoScroll').checked = settings.autoScroll;
             document.getElementById('settingsSound').checked = settings.soundEnabled;
+            document.getElementById('settingsWakeWordEnabled').checked = settings.wakeWordEnabled;
+            document.getElementById('settingsWakeWord').value = settings.wakeWord;
+
+            // Show/hide wake word input based on toggle
+            document.getElementById('wakeWordContainer').classList.toggle('hidden', !settings.wakeWordEnabled);
+
+            // Load stop word settings
+            document.getElementById('settingsStopWordEnabled').checked = settings.stopWordEnabled;
+            document.getElementById('settingsStopWord').value = settings.stopWord;
+
+            // Show/hide stop word input based on toggle
+            document.getElementById('stopWordContainer').classList.toggle('hidden', !settings.stopWordEnabled);
 
             // Clear connection status
             statusEl.classList.add('hidden');
@@ -1813,8 +2083,13 @@
             settings.defaultModel = document.getElementById('settingsDefaultModel').value;
             settings.fontSize = document.getElementById('settingsFontSize').value;
             settings.maxRecordingTime = parseInt(document.getElementById('settingsMaxRecordingTime').value) || 1;
+            settings.recordingKeybind = document.getElementById('settingsRecordingKeybind').value || 'ralt';
             settings.autoScroll = document.getElementById('settingsAutoScroll').checked;
             settings.soundEnabled = document.getElementById('settingsSound').checked;
+            settings.wakeWordEnabled = document.getElementById('settingsWakeWordEnabled').checked;
+            settings.wakeWord = document.getElementById('settingsWakeWord').value.trim() || 'Hey Assistant';
+            settings.stopWordEnabled = document.getElementById('settingsStopWordEnabled').checked;
+            settings.stopWord = document.getElementById('settingsStopWord').value.trim() || 'Stop Recording';
 
             // If no host, clear the default model (can't use a model without a host)
             if (!settings.ollamaHost) {
@@ -1826,11 +2101,20 @@
             localStorage.setItem('defaultModel', settings.defaultModel);
             localStorage.setItem('fontSize', settings.fontSize);
             localStorage.setItem('maxRecordingTime', settings.maxRecordingTime);
+            localStorage.setItem('recordingKeybind', settings.recordingKeybind);
             localStorage.setItem('autoScroll', settings.autoScroll);
             localStorage.setItem('soundEnabled', settings.soundEnabled);
+            // Wake/stop word disabled - in beta
+            // localStorage.setItem('wakeWordEnabled', settings.wakeWordEnabled);
+            // localStorage.setItem('wakeWord', settings.wakeWord);
+            // localStorage.setItem('stopWordEnabled', settings.stopWordEnabled);
+            // localStorage.setItem('stopWord', settings.stopWord);
 
             // Apply settings
             applySettings();
+
+            // Wake/stop word disabled - in beta (don't start listening)
+            stopWakeWordListening();
 
             closeSettingsModal();
             showNotification('Settings saved successfully', 'success');
@@ -1853,12 +2137,20 @@
                 settings.fontSize = 'medium';
                 settings.autoScroll = true;
                 settings.soundEnabled = true;
+                settings.wakeWordEnabled = false;
+                settings.wakeWord = 'Hey Assistant';
+                settings.stopWordEnabled = false;
+                settings.stopWord = 'Stop Recording';
 
                 localStorage.removeItem('ollamaHost');
                 localStorage.removeItem('defaultModel');
                 localStorage.removeItem('fontSize');
                 localStorage.removeItem('autoScroll');
                 localStorage.removeItem('soundEnabled');
+                localStorage.removeItem('wakeWordEnabled');
+                localStorage.removeItem('wakeWord');
+                localStorage.removeItem('stopWordEnabled');
+                localStorage.removeItem('stopWord');
 
                 // Reload form with defaults
                 document.getElementById('settingsOllamaHost').value = '';
@@ -1866,6 +2158,15 @@
                 document.getElementById('settingsFontSize').value = 'medium';
                 document.getElementById('settingsAutoScroll').checked = true;
                 document.getElementById('settingsSound').checked = true;
+                document.getElementById('settingsWakeWordEnabled').checked = false;
+                document.getElementById('settingsWakeWord').value = 'Hey Assistant';
+                document.getElementById('wakeWordContainer').classList.add('hidden');
+                document.getElementById('settingsStopWordEnabled').checked = false;
+                document.getElementById('settingsStopWord').value = 'Stop Recording';
+                document.getElementById('stopWordContainer').classList.add('hidden');
+
+                // Stop wake word listening
+                stopWakeWordListening();
 
                 applySettings();
                 showNotification('Settings reset to defaults', 'success');
@@ -2096,6 +2397,17 @@
                                 <option value="5">5 minutes</option>
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-gray-400 text-sm mb-2">Recording Keybind</label>
+                            <select id="settingsRecordingKeybind" class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50">
+                                <option value="ralt">Right Alt</option>
+                                <option value="lalt">Left Alt</option>
+                                <option value="rctrl">Right Ctrl</option>
+                                <option value="lctrl">Left Ctrl</option>
+                                <option value="space">Space</option>
+                                <option value="f9">F9</option>
+                            </select>
+                        </div>
                         <label class="flex items-center justify-between cursor-pointer group">
                             <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Auto-scroll to new messages</span>
                             <input type="checkbox" id="settingsAutoScroll" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
@@ -2104,6 +2416,32 @@
                             <span class="text-gray-300 text-sm group-hover:text-white transition-colors">Sound effects</span>
                             <input type="checkbox" id="settingsSound" checked class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50">
                         </label>
+                        <label class="flex items-center justify-between cursor-pointer group opacity-50">
+                            <span class="flex items-center gap-2">
+                                <span class="text-gray-300 text-sm">Wake word listening</span>
+                                <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full border border-yellow-500/30">BETA</span>
+                            </span>
+                            <input type="checkbox" id="settingsWakeWordEnabled" disabled class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50 cursor-not-allowed">
+                        </label>
+                        <p class="text-gray-500 text-xs">Coming soon - trigger recording with your voice</p>
+                        <div id="wakeWordContainer" class="hidden">
+                            <label class="block text-gray-400 text-sm mb-2">Wake Word</label>
+                            <input type="text" id="settingsWakeWord" value="Hey Assistant" disabled class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm cursor-not-allowed opacity-50" placeholder="e.g., Hey Assistant">
+                            <p class="text-gray-500 text-xs mt-1">Say this word to start/stop recording</p>
+                        </div>
+                        <label class="flex items-center justify-between cursor-pointer group opacity-50">
+                            <span class="flex items-center gap-2">
+                                <span class="text-gray-300 text-sm">Stop word listening</span>
+                                <span class="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-full border border-yellow-500/30">BETA</span>
+                            </span>
+                            <input type="checkbox" id="settingsStopWordEnabled" disabled class="w-4 h-4 rounded border-white/30 bg-slate-700 text-blue-500 focus:ring-blue-500/50 cursor-not-allowed">
+                        </label>
+                        <p class="text-gray-500 text-xs">Coming soon - stop recording with your voice</p>
+                        <div id="stopWordContainer" class="hidden">
+                            <label class="block text-gray-400 text-sm mb-2">Stop Word</label>
+                            <input type="text" id="settingsStopWord" value="Stop Recording" disabled class="w-full bg-slate-700 border border-white/20 rounded-lg px-3 py-2 text-white text-sm cursor-not-allowed opacity-50" placeholder="e.g., Stop Recording">
+                            <p class="text-gray-500 text-xs mt-1">Say this word during recording to stop it</p>
+                        </div>
                     </div>
                 </div>
 
