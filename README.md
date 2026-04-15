@@ -11,6 +11,15 @@ A modern web application that captures voice commands, transcribes them using Op
 - **Recording Timer**: Configurable max recording duration (1-5 minutes) with visual countdown
 - **Speech-to-Text**: Powered by OpenAI Whisper (runs locally)
 - **Multiple Audio Formats**: WebM, MP4, WAV, OGG, MP3 support
+- **🆕 Text-to-Speech (TTS)**: On-demand audio generation using Kokoro TTS - click "Read" on any AI message to hear it spoken
+
+### Text-to-Speech (v2.3)
+- **On-Demand TTS**: AI responses are text-only by default; click "Read" in the bubble menu to generate audio
+- **Clean Audio**: Automatically strips markdown formatting (asterisks, links, code blocks) so the voice only speaks the content
+- **1000 Character Limit**: Supports longer responses (up from 500 chars)
+- **Loading Animation**: Shows "Generating..." spinner while TTS is processing
+- **Kokoro TTS**: Fast, high-quality local text-to-speech using the Kokoro-82M model
+- **Audio Caching**: Generated audio files cached for reuse
 
 ### Web Search & Images (v2.2)
 - **Web Search**: Toggle web search to augment LLM responses with real-time DuckDuckGo results
@@ -128,6 +137,13 @@ environment:
 5. **Click again** or wait for timer to stop recording
 6. **View the results** - transcription and AI response
 7. **Access history** via the sidebar to resume past conversations
+
+### Using Text-to-Speech (TTS)
+
+- **Read Aloud**: Click on any AI message bubble, then click "Read" in the menu to generate audio
+- **Clean Audio**: TTS automatically removes formatting (*, **, links, code) so you hear clean speech
+- **Loading Indicator**: Shows "Generating..." while audio is being created
+- **1000 Character Limit**: Longer responses will be truncated at 1000 characters for TTS
 
 ### Using Web Search
 
@@ -248,6 +264,18 @@ voice-command-app/
 ```
 
 ## 🆕 Changelog
+
+### v2.3 - TTS Update
+- On-demand Text-to-Speech (TTS) using Kokoro-82M model
+- Click "Read" button on AI messages to generate audio
+- Text cleaning: removes markdown (*, **, links, code) for clean speech
+- 1000 character TTS limit (up from 500)
+- "Generating..." loading animation while TTS processes
+- Audio caching for generated files
+- Server-side debug logging
+- New dependencies: kokoro-onnx, soundfile, espeak-ng
+- New `/api/generate-tts` endpoint
+- New `tts_audio_url` column in messages database
 
 ### v2.2 - Web Search Update
 - DuckDuckGo web search integration with toggle

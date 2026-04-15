@@ -104,6 +104,10 @@
             background: rgba(248, 113, 113, 0.15);
         }
 
+        .action-btn.read:hover {
+            color: #34d399;
+        }
+
         .action-divider {
             width: 1px;
             height: 20px;
@@ -382,6 +386,174 @@
             margin: 0;
         }
 
+        /* Links in response text */
+        .response-text a {
+            color: #60a5fa;
+            text-decoration: underline;
+            text-decoration-color: rgba(96, 165, 250, 0.5);
+            transition: all 0.2s;
+        }
+
+        .response-text a:hover {
+            color: #93c5fd;
+            text-decoration-color: #93c5fd;
+        }
+
+        .response-text a::after {
+            content: ' ↗';
+            font-size: 0.85em;
+            opacity: 0.7;
+        }
+
+        /* Link Preview Tooltip */
+        .link-preview-tooltip {
+            position: fixed;
+            z-index: 1000;
+            max-width: 320px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            padding: 0;
+            overflow: hidden;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .link-preview-tooltip.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .link-preview-tooltip .preview-image {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .link-preview-tooltip .preview-content {
+            padding: 12px;
+        }
+
+        .link-preview-tooltip .preview-title {
+            color: #fff;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .link-preview-tooltip .preview-desc {
+            color: #94a3b8;
+            font-size: 12px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .link-preview-tooltip .preview-url {
+            color: #60a5fa;
+            font-size: 11px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .link-preview-tooltip .preview-favicon {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .link-preview-tooltip {
+                display: none;
+            }
+        }
+
+        /* Images in response text */
+        .response-text img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 8px;
+            margin: 12px 0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .response-text img:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Image Popup Modal */
+        .image-popup-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        .image-popup-modal.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .image-popup-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .image-popup-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .image-popup-close:hover {
+            color: #60a5fa;
+        }
+
+        .image-popup-source {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #60a5fa;
+            font-size: 14px;
+        }
+
+        .image-popup-source a {
+            color: #60a5fa;
+            text-decoration: underline;
+        }
+
         /* Main container positioning */
         .main-container {
             justify-content: center;
@@ -560,6 +732,23 @@
             <!-- Main Card -->
             <div class="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
 
+                <!-- Web Search Toggle -->
+                <div id="webSearchContainer" class="mb-4 flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                        <div>
+                            <span class="text-gray-300 text-sm font-medium group-hover:text-white transition-colors">Web Search</span>
+                            <p class="text-gray-500 text-xs">Augment with live results</p>
+                        </div>
+                    </label>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="webSearchToggle" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-500/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                    </label>
+                </div>
+
                 <!-- Processing Indicator -->
                 <div id="processing" class="hidden mb-6 text-center">
                     <div class="inline-flex items-center gap-2 text-white">
@@ -627,6 +816,13 @@
                 <div class="text-gray-500 text-sm text-center py-4">No past conversations</div>
             </div>
         </div>
+
+    <!-- Image Popup Modal -->
+    <div id="imagePopupModal" class="image-popup-modal" onclick="closeImagePopup(event)">
+        <span class="image-popup-close" onclick="closeImagePopup()">&times;</span>
+        <img id="imagePopupImg" src="" alt="Enlarged image">
+        <div class="image-popup-source">Source: <a id="imagePopupSource" href="" target="_blank"></a></div>
+    </div>
 
     <!-- Custom Confirmation Modal -->
     <div id="confirmModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center">
@@ -991,6 +1187,11 @@
                     formData.append('conversation_id', currentConversationId);
                 }
 
+                // Add web search flag if enabled
+                if (settings.webSearchEnabled) {
+                    formData.append('web_search', 'true');
+                }
+
                 // Send to server
                 const response = await fetch('/api/transcribe', {
                     method: 'POST',
@@ -1005,7 +1206,7 @@
                 playNotification();
 
                 if (result.success) {
-                    showResults(result.transcription, result.llm_response, result.model_used);
+                    showResults(result.transcription, result.llm_response, result.model_used, result.web_search_used, result.tts_audio_url);
                     currentConversationId = result.conversation_id;
                     loadConversations(); // Refresh the sidebar
                 } else {
@@ -1032,11 +1233,23 @@
             instructions.classList.remove('hidden');
         }
 
-        function showResults(transcription, response, modelUsed) {
+        function showResults(transcription, response, modelUsed, webSearchUsed = false, ttsAudioUrl = null) {
             results.classList.remove('hidden');
-            
+
             // Format model name for display
             const displayModel = modelUsed ? modelUsed.split(':')[0] : 'AI';
+            const now = new Date();
+            const currentTime = now.toLocaleDateString() + ' ' + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // Web search indicator HTML
+            const webSearchBadge = webSearchUsed ? `
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Web Search
+                </span>
+            ` : '';
 
             // Create transcription element (User)
             const userDiv = document.createElement('div');
@@ -1050,13 +1263,17 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                         </svg>
                     </div>
-                    <p class="text-white text-sm md:text-lg leading-relaxed text-left">${transcription}</p>
+                    <p class="text-white text-sm leading-relaxed text-left">${transcription}</p>
+                    <div class="mt-2 text-right">
+                        <span class="text-gray-500 text-[10px]">${currentTime}</span>
+                    </div>
                 </div>
             `;
 
             // Create AI response element (AI)
             const aiDiv = document.createElement('div');
             aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
+            aiDiv.dataset.messageContent = response; // Store content for TTS generation
             aiDiv.onclick = handleBubbleClick;
             aiDiv.innerHTML = `
                 <div class="chat-bubble-content relative w-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
@@ -1065,9 +1282,11 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                         </svg>
                         <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
+                        ${webSearchBadge}
                     </div>
                     <p class="text-white text-sm leading-relaxed response-text"></p>
-                    <div class="mt-3 pt-2 border-t border-white/10 text-right">
+                    <div class="mt-3 pt-2 border-t border-white/10 flex justify-between items-center">
+                        <span class="text-gray-500 text-[10px]">${currentTime}</span>
                         <span class="text-gray-500 text-[10px]">${displayModel}</span>
                     </div>
                 </div>
@@ -1080,6 +1299,9 @@
             // 2. Prepend AI (goes above User)
             chatHistory.prepend(userDiv);
             chatHistory.prepend(aiDiv);
+
+            // Scroll to top to show new AI response
+            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             const responseTextElement = aiDiv.querySelector('.response-text');
 
@@ -1105,7 +1327,7 @@
                         let displayText = paragraphs.slice(0, currentParaIndex).join('\n\n') + '\n\n' + currentText;
                         responseTextElement.innerHTML = marked.parse(displayText);
 
-                        // Scroll to bottom of element
+                        // Keep response text scrolled within its container
                         responseTextElement.scrollTop = responseTextElement.scrollHeight;
 
                         setTimeout(typeWithFormatting, typingSpeed);
@@ -1290,14 +1512,42 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
                                         </svg>
                                     </div>
-                                    <p class="text-white text-sm md:text-lg leading-relaxed text-left">${msg.content}</p>
+                                    <p class="text-white text-sm leading-relaxed text-left">${msg.content}</p>
+                                    <div class="mt-2 text-right">
+                                        <span class="text-gray-500 text-[10px]">${new Date(msg.timestamp).toLocaleDateString() + ' ' + new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                    </div>
                                 </div>
                             `;
                             chatHistory.appendChild(userDiv);
                         } else {
+                            // Web search badge for historical messages
+                            const webSearchBadge = msg.web_search_used ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                    </svg>
+                                    Web Search
+                                </span>
+                            ` : '';
+
                             const aiDiv = document.createElement('div');
                             aiDiv.className = 'chat-bubble flex justify-start mb-4 group/msg cursor-pointer';
                             aiDiv.onclick = handleBubbleClick;
+                            // Store message content for TTS generation
+                            aiDiv.dataset.messageContent = msg.content;
+                            
+                            // Check if this message has TTS audio
+                            const hasTTS = msg.tts_audio_url ? true : false;
+                            const ttsBadge = hasTTS ? `
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-500/20 text-blue-300 text-xs rounded-full border border-blue-500/30 ml-2 cursor-pointer hover:bg-blue-500/30 transition-colors" onclick="event.stopPropagation(); playTTS('${msg.tts_audio_url}', this.closest('.chat-bubble'))">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Play
+                                </span>
+                            ` : '';
+                            
                             aiDiv.innerHTML = `
                                 <div class="chat-bubble-content relative w-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-2xl rounded-tl-none p-4 border border-white/20 shadow-sm hover:from-purple-500/30 hover:to-blue-500/30 transition-colors">
                                     <div class="flex items-center gap-2 mb-2">
@@ -1305,13 +1555,19 @@
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                                         </svg>
                                         <span class="text-purple-400 text-xs font-semibold uppercase tracking-wide">AI Assistant</span>
+                                        ${webSearchBadge}
+                                        ${ttsBadge}
                                     </div>
-                                    <div class="text-white text-sm md:text-lg leading-relaxed response-text">${marked.parse(msg.content)}</div>
-                                    <div class="mt-3 pt-2 border-t border-white/10 text-right">
+                                    <div class="text-white text-sm leading-relaxed response-text">${marked.parse(msg.content)}</div>
+                                    <div class="mt-3 pt-2 border-t border-white/10 flex justify-between items-center">
+                                        <span class="text-gray-500 text-[10px]">${new Date(msg.timestamp).toLocaleDateString() + ' ' + new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                                         <span class="text-gray-500 text-[10px]">${displayModel}</span>
                                     </div>
                                 </div>
                             `;
+                            if (hasTTS) {
+                                aiDiv.dataset.ttsAudio = msg.tts_audio_url;
+                            }
                             chatHistory.appendChild(aiDiv);
                         }
                     });
@@ -1329,7 +1585,7 @@
 
         // Custom confirmation modal functions
         function showConfirmModal(title, message, onConfirm, onCancel) {
-            playAlert();
+            // Note: Sound is played by caller before showing modal
             const modal = document.getElementById('confirmModal');
             const content = document.getElementById('confirmModalContent');
             const titleEl = document.getElementById('confirmModalTitle');
@@ -1445,24 +1701,187 @@
             statusText.textContent = 'Ready to listen'; }, 2000);
         }
 
+        // Link Preview System
+        const previewCache = new Map();
+        let previewTooltip = null;
+        let previewTimeout = null;
+
+        function createPreviewTooltip() {
+            if (previewTooltip) return;
+            previewTooltip = document.createElement('div');
+            previewTooltip.className = 'link-preview-tooltip';
+            previewTooltip.innerHTML = `
+                <img class="preview-image" src="" alt="" onerror="this.style.display='none'">
+                <div class="preview-content">
+                    <div class="preview-title"></div>
+                    <div class="preview-desc"></div>
+                    <div class="preview-url">
+                        <img class="preview-favicon" src="" alt="" onerror="this.style.display='none'">
+                        <span class="preview-domain"></span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(previewTooltip);
+        }
+
+        async function fetchLinkPreview(url) {
+            if (previewCache.has(url)) {
+                return previewCache.get(url);
+            }
+
+            try {
+                const response = await fetch(`/api/link-preview?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+                previewCache.set(url, data);
+                return data;
+            } catch (e) {
+                console.error('Link preview error:', e);
+                return null;
+            }
+        }
+
+        function hidePreviewTooltip() {
+            clearTimeout(previewTimeout);
+            if (previewTooltip) {
+                previewTooltip.classList.remove('visible');
+            }
+        }
+
+        function setupLinkPreviews() {
+            // Use event delegation on document for all links in response text
+            document.addEventListener('mouseover', (e) => {
+                const link = e.target.closest('.response-text a');
+                if (link) {
+                    clearTimeout(previewTimeout);
+                    previewTimeout = setTimeout(() => showPreviewTooltip2(e, link.href), 400);
+                }
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                const link = e.target.closest('.response-text a');
+                if (link) {
+                    clearTimeout(previewTimeout);
+                    hidePreviewTooltip();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                const link = e.target.closest('.response-text a');
+                if (link && previewTooltip.classList.contains('visible')) {
+                    let left = e.clientX + 15;
+                    let top = e.clientY + 15;
+                    if (left + 320 > window.innerWidth) left = e.clientX - 335;
+                    if (top + 250 > window.innerHeight) top = e.clientY - 260;
+                    previewTooltip.style.left = `${left}px`;
+                    previewTooltip.style.top = `${top}px`;
+                }
+            });
+        }
+
+        async function showPreviewTooltip2(event, url) {
+            const preview = await fetchLinkPreview(url);
+            if (!preview) return;
+
+            const tooltip = previewTooltip;
+            const img = tooltip.querySelector('.preview-image');
+            const title = tooltip.querySelector('.preview-title');
+            const desc = tooltip.querySelector('.preview-desc');
+            const favicon = tooltip.querySelector('.preview-favicon');
+            const domain = tooltip.querySelector('.preview-domain');
+
+            if (preview.image) {
+                img.src = preview.image;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
+
+            title.textContent = preview.title || new URL(url).hostname;
+            desc.textContent = preview.description || '';
+            domain.textContent = new URL(url).hostname;
+
+            if (preview.icon) {
+                favicon.src = preview.icon;
+                favicon.style.display = 'block';
+            } else {
+                favicon.style.display = 'none';
+            }
+
+            let left = event.clientX + 15;
+            let top = event.clientY + 15;
+            if (left + 320 > window.innerWidth) left = event.clientX - 335;
+            if (top + 250 > window.innerHeight) top = event.clientY - 260;
+
+            tooltip.style.left = `${left}px`;
+            tooltip.style.top = `${top}px`;
+            tooltip.classList.add('visible');
+        }
+
+        // Image Popup Functions
+        function setupImagePopups() {
+            document.addEventListener('click', (e) => {
+                const img = e.target.closest('.response-text img');
+                if (img) {
+                    openImagePopup(img.src, img.alt);
+                }
+            });
+        }
+
+        function openImagePopup(src, alt) {
+            const modal = document.getElementById('imagePopupModal');
+            const modalImg = document.getElementById('imagePopupImg');
+            const modalSource = document.getElementById('imagePopupSource');
+
+            modalImg.src = src;
+            modalImg.alt = alt || 'Image';
+            modalSource.href = src;
+            modalSource.textContent = src.split('/')[2] || 'View original';
+
+            modal.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImagePopup(event) {
+            if (event && event.target.tagName !== 'IMG' && event.target.tagName !== 'A') {
+                const modal = document.getElementById('imagePopupModal');
+                modal.classList.remove('visible');
+                document.body.style.overflow = '';
+            }
+        }
+
         // Initialize
         loadConversations();
         updateProfileAvatar();
+        createPreviewTooltip();
+        setupLinkPreviews();
+        setupImagePopups();
 
         // Track active action menu
         let activeActionMenu = null;
 
         async function handleBubbleClick(e) {
-            console.log('Bubble clicked', e.target);
+            console.log('=== BUBBLE CLICKED ===');
+            console.log('Event target:', e.target);
+            console.log('Event currentTarget:', e.currentTarget);
 
             // Close any existing action menu
             closeActionMenu();
 
             const bubble = e.currentTarget; // Use currentTarget to get the element with the handler
-            if (!bubble) return;
+            console.log('Bubble element:', bubble);
+            console.log('Bubble dataset:', bubble.dataset);
+            console.log('Bubble classList:', bubble.classList.toString());
+            
+            if (!bubble) {
+                console.error('ERROR: No bubble element found!');
+                return;
+            }
 
             const isUser = bubble.classList.contains('justify-end');
+            console.log('Is user message:', isUser);
+            
             const bubbleContent = bubble.querySelector('p').textContent;
+            console.log('Bubble content (p element):', bubbleContent.substring(0, 100) + '...');
 
             // Create action menu
             const menu = document.createElement('div');
@@ -1487,21 +1906,47 @@
                     </button>
                 `;
             } else {
-                // AI message: Copy option
+                // AI message: Copy and Read Aloud options - ALWAYS show Read
                 menu.innerHTML = `
-                    <button class="action-btn copy" onclick="handleBubbleAction(event, 'copy', this)" title="Copy to clipboard">
+                    <button class="action-btn read" data-action="read" title="Read aloud">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                        </svg>
+                        <span>Read</span>
+                    </button>
+                    <div class="action-divider"></div>
+                    <button class="action-btn copy" data-action="copy" title="Copy to clipboard">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m4 0h4m-8-4h.01M15 16h.01"></path>
                         </svg>
                         <span>Copy</span>
                     </button>
                 `;
+                
+                // Attach event listeners directly to buttons
+                const readBtn = menu.querySelector('[data-action="read"]');
+                const copyBtn = menu.querySelector('[data-action="copy"]');
+                
+                readBtn.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    const bubble = menu.closest('.chat-bubble');
+                    await readAloud(this, bubble);
+                });
+                
+                copyBtn.addEventListener('click', async function(e) {
+                    e.stopPropagation();
+                    const content = menu.dataset.fullMessageContent || menu.dataset.bubbleContent;
+                    await copyText(content);
+                    closeActionMenu();
+                });
             }
 
             // Store reference to the bubble for action handlers
             menu.dataset.bubbleContent = bubbleContent;
+            menu.dataset.fullMessageContent = bubble.dataset.messageContent || bubbleContent;
             bubble.appendChild(menu);
             activeActionMenu = menu;
+            console.log('Menu appended to bubble, HTML:', menu.innerHTML.substring(0, 200));
 
             // Position the menu
             const rect = bubble.getBoundingClientRect();
@@ -1509,6 +1954,7 @@
             menu.style.top = isUser ? '8px' : '8px';
             menu.style.right = isUser ? '8px' : 'auto';
             menu.style.left = isUser ? 'auto' : '8px';
+            console.log('Menu positioned at:', menu.style.top, menu.style.left || menu.style.right);
         }
 
         function closeActionMenu() {
@@ -1526,23 +1972,50 @@
         });
 
         async function handleBubbleAction(e, action, btn) {
+            console.log('=== HANDLE BUBBLE ACTION CALLED ===');
+            console.log('Event:', e);
+            console.log('Action:', action);
+            console.log('Button:', btn);
+            console.log('Event type:', e.type);
+            console.log('Event target:', e.target);
+            
             e.stopPropagation();
             const menu = btn.closest('.bubble-action-menu');
-            const content = menu.dataset.bubbleContent;
+            console.log('Menu found:', menu);
+            
+            const bubble = menu.closest('.chat-bubble');
+            console.log('Bubble found:', bubble);
+            
+            const bubbleContent = menu.dataset.bubbleContent;
+            const fullMessageContent = menu.dataset.fullMessageContent || bubbleContent;
+
+            console.log('Menu dataset:', menu.dataset);
+            console.log('Using content:', fullMessageContent ? fullMessageContent.substring(0, 50) + '...' : 'empty');
 
             closeActionMenu();
 
+            console.log('Switching on action:', action);
             switch (action) {
                 case 'copy':
-                    await copyText(content);
+                    console.log('Executing copy action');
+                    await copyText(fullMessageContent);
+                    break;
+                case 'read':
+                    console.log('Executing read action');
+                    await readAloud(btn);
                     break;
                 case 'rerun':
-                    await rerunPrompt(content);
+                    console.log('Executing rerun action');
+                    await rerunPrompt(fullMessageContent);
                     break;
                 case 'delete':
-                    await deleteMessagePair(content);
+                    console.log('Executing delete action');
+                    await deleteMessagePair(fullMessageContent);
                     break;
+                default:
+                    console.log('Unknown action:', action);
             }
+            console.log('=== HANDLE BUBBLE ACTION FINISHED ===');
         }
 
         async function copyText(text) {
@@ -1551,6 +2024,152 @@
                 showNotification('Copied to clipboard!', 'success');
             } catch (err) {
                 showNotification('Failed to copy', 'error');
+            }
+        }
+
+        async function readAloud(btn) {
+            console.log('=== READ ALOUD STARTED ===');
+            console.log('Button element:', btn);
+            
+            const menu = btn.closest('.bubble-action-menu');
+            console.log('Menu element:', menu);
+            console.log('Menu dataset:', menu ? menu.dataset : 'null');
+            
+            const bubble = menu.closest('.chat-bubble');
+            console.log('Bubble element:', bubble);
+            console.log('Bubble dataset:', bubble ? bubble.dataset : 'null');
+            
+            // Try to get message content from bubble dataset first, then menu
+            let messageContent = bubble.dataset.messageContent;
+            if (!messageContent && menu.dataset.fullMessageContent) {
+                messageContent = menu.dataset.fullMessageContent;
+            }
+            
+            console.log('messageContent:', messageContent);
+            console.log('messageContent type:', typeof messageContent);
+            console.log('messageContent length:', messageContent ? messageContent.length : 0);
+            
+            if (!messageContent) {
+                console.error('ERROR: No message content available!');
+                showNotification('No message content available', 'error');
+                return;
+            }
+            
+            console.log('Setting button to loading state...');
+            // Show loading state
+            btn.innerHTML = `
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Generating...</span>
+            `;
+            btn.disabled = true;
+            console.log('Button HTML updated to loading state');
+            
+            try {
+                console.log('Preparing to send TTS request...');
+                // Generate TTS on demand
+                const formData = new FormData();
+                formData.append('text', messageContent);
+                console.log('FormData created with text:', messageContent.substring(0, 50) + '...');
+                
+                console.log('Sending fetch request to /api/generate-tts...');
+                const response = await fetch('/api/generate-tts', {
+                    method: 'POST',
+                    body: formData
+                });
+                console.log('Fetch response received:', response);
+                console.log('Response status:', response.status);
+                
+                console.log('Parsing JSON response...');
+                const result = await response.json();
+                console.log('Parsed result:', result);
+                
+                if (result.success) {
+                    console.log('TTS generation successful! Audio URL:', result.audio_url);
+                    bubble.dataset.ttsAudio = result.audio_url;
+                    console.log('Calling playTTS...');
+                    await playTTS(result.audio_url, bubble);
+                    showNotification('Audio generated and playing!', 'success');
+                } else {
+                    console.error('TTS generation failed:', result.error);
+                    throw new Error(result.error || 'Failed to generate audio');
+                }
+            } catch (err) {
+                console.error('TTS generation error:', err);
+                console.error('Error stack:', err.stack);
+                showNotification('Failed to generate audio: ' + err.message, 'error');
+            } finally {
+                console.log('=== READ ALOUD FINISHED ===');
+                // Reset button
+                btn.innerHTML = `
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                    </svg>
+                    <span>Read</span>
+                `;
+                btn.disabled = false;
+                closeActionMenu();
+            }
+        }
+
+        // Global function to play TTS audio
+        window.currentTTSAudio = null;
+        
+        async function playTTS(ttsUrl, bubble) {
+            if (!ttsUrl) {
+                showNotification('No audio available', 'error');
+                return;
+            }
+            
+            // Stop any currently playing audio
+            if (window.currentTTSAudio) {
+                window.currentTTSAudio.pause();
+                window.currentTTSAudio.currentTime = 0;
+            }
+            
+            try {
+                const audio = new Audio(ttsUrl);
+                window.currentTTSAudio = audio;
+                
+                // Update UI to show playing state
+                const readyIndicator = bubble.querySelector('.tts-ready-indicator');
+                const originalHTML = readyIndicator ? readyIndicator.innerHTML : '';
+                
+                if (readyIndicator) {
+                    readyIndicator.innerHTML = `
+                        <svg class="w-3 h-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Playing...
+                    `;
+                    readyIndicator.classList.add('bg-green-500/20', 'text-green-300', 'border-green-500/30');
+                }
+                
+                audio.onended = () => {
+                    window.currentTTSAudio = null;
+                    if (readyIndicator) {
+                        readyIndicator.innerHTML = originalHTML;
+                        readyIndicator.classList.remove('bg-green-500/20', 'text-green-300', 'border-green-500/30');
+                    }
+                };
+                
+                audio.onerror = () => {
+                    window.currentTTSAudio = null;
+                    showNotification('Failed to play audio', 'error');
+                    if (readyIndicator) {
+                        readyIndicator.innerHTML = originalHTML;
+                        readyIndicator.classList.remove('bg-green-500/20', 'text-green-300', 'border-green-500/30');
+                    }
+                };
+                
+                await audio.play();
+                showNotification('Playing audio...', 'success');
+            } catch (err) {
+                window.currentTTSAudio = null;
+                showNotification('Failed to play audio', 'error');
+                console.error('Audio play error:', err);
             }
         }
 
@@ -1563,13 +2182,15 @@
             // Use the configured model from settings
             if (settings.defaultModel) formData.append('model', settings.defaultModel);
             if (currentConversationId) formData.append('conversation_id', currentConversationId);
+            // Add web search flag if enabled
+            if (settings.webSearchEnabled) formData.append('web_search', 'true');
 
             try {
                 const response = await fetch('/api/transcribe', { method: 'POST', body: formData });
                 const result = await response.json();
                 processing.classList.add('hidden');
                 if (result.success) {
-                    showResults(result.transcription, result.llm_response, result.model_used);
+                    showResults(result.transcription, result.llm_response, result.model_used, result.web_search_used);
                     currentConversationId = result.conversation_id;
                     loadConversations();
                 } else {
@@ -1834,7 +2455,8 @@
             wakeWordEnabled: false, // Disabled - in beta
             wakeWord: localStorage.getItem('wakeWord') || 'Hey Assistant',
             stopWordEnabled: false, // Disabled - in beta
-            stopWord: localStorage.getItem('stopWord') || 'Stop Recording'
+            stopWord: localStorage.getItem('stopWord') || 'Stop Recording',
+            webSearchEnabled: localStorage.getItem('webSearchEnabled') === 'true'
         };
 
         // Wake Word Recognition
@@ -1990,6 +2612,17 @@
                     stopWordContainer.classList.toggle('hidden', !stopWordToggle.checked);
                 });
             }
+
+            // Web Search Toggle Event Listener
+            const webSearchToggle = document.getElementById('webSearchToggle');
+            if (webSearchToggle) {
+                webSearchToggle.checked = settings.webSearchEnabled;
+                webSearchToggle.addEventListener('change', function() {
+                    settings.webSearchEnabled = this.checked;
+                    localStorage.setItem('webSearchEnabled', this.checked);
+                    showNotification(this.checked ? 'Web search enabled' : 'Web search disabled', 'info');
+                });
+            }
         });
 
         function openSettingsModal() {
@@ -2131,6 +2764,7 @@
         }
 
         function resetSettings() {
+            playAlert();
             showConfirmModal('Reset Settings', 'Reset all settings to defaults?', () => {
                 settings.ollamaHost = '';
                 settings.defaultModel = '';

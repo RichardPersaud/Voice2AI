@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     gcc \
     g++ \
+    espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -17,6 +18,9 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
 # Install openai-whisper separately to isolate build errors
 RUN pip install --no-cache-dir openai-whisper
+
+# Install Kokoro TTS and its dependencies
+RUN pip install --no-cache-dir kokoro soundfile misaki[en]
 
 # Copy requirements and install the rest
 COPY requirements.txt .
