@@ -1,6 +1,6 @@
 # 🎤 Voice Command App
 
-A modern web application that captures voice commands, transcribes them using OpenAI Whisper, and processes them through an LLM (Ollama). Features conversation history, configurable settings, and a beautiful dark-themed UI. Designed for easy deployment on CasaOS.
+A modern web application that captures voice commands, transcribes them using OpenAI Whisper, and processes them through an LLM (Ollama). Features web search augmentation, image search, link previews, conversation history, configurable settings, and a beautiful dark-themed UI. Designed for easy deployment on CasaOS.
 
 <img width="1453" height="755" alt="image" src="https://github.com/user-attachments/assets/8cff2b1f-01aa-413c-98eb-b2eabf4d1c34" />
 
@@ -11,6 +11,21 @@ A modern web application that captures voice commands, transcribes them using Op
 - **Recording Timer**: Configurable max recording duration (1-5 minutes) with visual countdown
 - **Speech-to-Text**: Powered by OpenAI Whisper (runs locally)
 - **Multiple Audio Formats**: WebM, MP4, WAV, OGG, MP3 support
+- **🆕 Text-to-Speech (TTS)**: On-demand audio generation using Kokoro TTS - click "Read" on any AI message to hear it spoken
+
+### Text-to-Speech (v2.3)
+- **On-Demand TTS**: AI responses are text-only by default; click "Read" in the bubble menu to generate audio
+- **Clean Audio**: Automatically strips markdown formatting (asterisks, links, code blocks) so the voice only speaks the content
+- **1000 Character Limit**: Supports longer responses (up from 500 chars)
+- **Loading Animation**: Shows "Generating..." spinner while TTS is processing
+- **Kokoro TTS**: Fast, high-quality local text-to-speech using the Kokoro-82M model
+- **Audio Caching**: Generated audio files cached for reuse
+
+### Web Search & Images (v2.2)
+- **Web Search**: Toggle web search to augment LLM responses with real-time DuckDuckGo results
+- **Image Search**: Ask for images naturally ("show me a picture of...") and get visual results inline
+- **Link Previews**: Hover over any link in AI responses to see Open Graph previews with thumbnails
+- **Source Citations**: AI cites sources with markdown links when using web search results
 
 ### AI & LLM Integration
 - **AI Processing**: Integrates with Ollama LLM for intelligent command interpretation
@@ -35,6 +50,7 @@ A modern web application that captures voice commands, transcribes them using Op
 ### Configuration
 - **Settings Modal**: Configure Ollama host, default model, and recording timer
 - **Model Persistence**: Default model selection saved to localStorage
+- **Web Search Toggle**: Enable/disable web search per query
 - **Live Reload**: Docker volume mount for development changes
 
 ## 🚀 Quick Start (CasaOS)
@@ -86,6 +102,8 @@ A modern web application that captures voice commands, transcribes them using Op
 | `OLLAMA_MODEL` | `llama3.2:latest` | Default model for processing |
 | `MAX_UPLOAD_SIZE` | `10485760` (10MB) | Max audio file size in bytes |
 
+> **Note**: Web search uses DuckDuckGo directly — no API key required.
+
 ### Application Settings
 
 Access settings via the **gear icon** in the profile menu:
@@ -120,6 +138,29 @@ environment:
 6. **View the results** - transcription and AI response
 7. **Access history** via the sidebar to resume past conversations
 
+### Using Text-to-Speech (TTS)
+
+- **Read Aloud**: Click on any AI message bubble, then click "Read" in the menu to generate audio
+- **Clean Audio**: TTS automatically removes formatting (*, **, links, code) so you hear clean speech
+- **Loading Indicator**: Shows "Generating..." while audio is being created
+- **1000 Character Limit**: Longer responses will be truncated at 1000 characters for TTS
+
+### Using Web Search
+
+- **Toggle web search** before submitting a query to get real-time results
+- The AI will cite sources with clickable links when using search results
+- Hover over any link in the response to see a preview card with thumbnail and description
+
+### Using Image Search
+
+Ask for images using natural language:
+- "Show me a picture of a sunset"
+- "Find me an image of a mountain landscape"
+- "Display a photo of a cat"
+- "Show me another picture of the ocean"
+
+The AI detects image requests automatically and returns results with inline images and source links.
+
 ### Managing Conversations
 
 - **View History**: Click the conversation sidebar (left) to see past chats
@@ -135,17 +176,12 @@ environment:
 │  (Web UI)   │←────│     Server      │←────│   LLM    │
 └─────────────┘     └─────────────────┘     └──────────┘
                             │
-                            ↓
-                     ┌──────────┐
-                     │  Whisper │
-                     │   (STT)  │
-                     └──────────┘
-                            │
-                            ↓
-                     ┌──────────┐
-                     │ SQLite   │
-                     │   (DB)   │
-                     └──────────┘
+                     ┌──────┼──────┐
+                     ↓      ↓      ↓
+               ┌─────────┐ ┌──────────┐ ┌──────────┐
+               │ Whisper  │ │ DuckDuck │ │  SQLite   │
+               │  (STT)   │ │  Go API  │ │   (DB)    │
+               └─────────┘ └──────────┘ └──────────┘
 ```
 
 ### Tech Stack
@@ -153,9 +189,26 @@ environment:
 - **Backend**: FastAPI (Python 3.10)
 - **STT**: OpenAI Whisper (local)
 - **LLM**: Ollama API
+- **Web Search**: DuckDuckGo Search (ddgs)
+- **Link Previews**: httpx + BeautifulSoup4 (Open Graph parsing)
 - **Database**: SQLite (persistent conversations)
 - **Frontend**: Vanilla JS + Tailwind CSS
 - **Container**: Docker
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Serve the main UI |
+| `/api/transcribe` | POST | Transcribe audio and process with LLM |
+| `/api/conversations` | GET | List all conversations |
+| `/api/conversations/{id}` | GET | Get conversation messages |
+| `/api/conversations/{id}` | DELETE | Delete a conversation |
+| `/api/messages` | DELETE | Delete a message pair |
+| `/api/models` | GET | List available Ollama models |
+| `/api/link-preview` | GET | Fetch Open Graph metadata for a URL |
+| `/api/test-ollama` | POST | Test Ollama connection |
+| `/health` | GET | Health check |
 
 ## 🔧 Troubleshooting
 
@@ -183,6 +236,12 @@ environment:
 - MP4 (Safari)
 - WAV, OGG, MP3
 
+### "Web search not working"
+- Ensure `ddgs>=8.0.0` is installed in the container
+- Rebuild the container: `docker-compose up -d --build`
+- DuckDuckGo search works without an API key
+- Check container logs for search errors: `docker-compose logs -f`
+
 ## 📁 Project Structure
 
 ```
@@ -203,6 +262,33 @@ voice-command-app/
 ├── .env.example         # Environment template
 └── README.md             # This file
 ```
+
+## 🆕 Changelog
+
+### v2.3 - TTS Update
+- On-demand Text-to-Speech (TTS) using Kokoro-82M model
+- Click "Read" button on AI messages to generate audio
+- Text cleaning: removes markdown (*, **, links, code) for clean speech
+- 1000 character TTS limit (up from 500)
+- "Generating..." loading animation while TTS processes
+- Audio caching for generated files
+- Server-side debug logging
+- New dependencies: kokoro-onnx, soundfile, espeak-ng
+- New `/api/generate-tts` endpoint
+- New `tts_audio_url` column in messages database
+
+### v2.2 - Web Search Update
+- DuckDuckGo web search integration with toggle
+- Image search with natural language detection ("show me a picture of...")
+- Link preview tooltips on hover (Open Graph metadata)
+- New `/api/link-preview` endpoint
+- `web_search_used` column in messages database
+- Added dependencies: ddgs, httpx, beautifulsoup4
+
+### v2.1
+- Recording timer with configurable max duration
+- Wake/stop word features (moved to BETA)
+- UI improvements
 
 ## 🐳 Docker Commands
 
@@ -255,3 +341,5 @@ MIT - Feel free to modify and redistribute!
 - OpenAI Whisper: https://github.com/openai/whisper
 - FastAPI: https://fastapi.tiangolo.com/
 - Ollama: https://ollama.ai/
+- DuckDuckGo Search: https://pypi.org/project/ddgs/
+- BeautifulSoup4: https://www.crummy.com/software/BeautifulSoup/

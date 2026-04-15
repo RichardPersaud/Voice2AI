@@ -11,6 +11,7 @@ services:
       - OLLAMA_MODEL=llama3.2:latest
     volumes:
       - ./uploads:/app/uploads
+      - ./static/tts_cache:/app/app/static/tts_cache
       - whisper-cache:/root/.cache/whisper
       - ./conversations.db:/app/conversations.db
       - ./app:/app/app
